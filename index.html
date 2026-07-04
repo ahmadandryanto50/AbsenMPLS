@@ -12,6 +12,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- HTML5-QRCode Library untuk Scan Barcode/QR via Kamera (Versi stabil tanpa isu integritas) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <!-- SheetJS (xlsx) untuk Export Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- jsPDF & jsPDF-AutoTable untuk Export PDF Resmi -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
   
   <style>
     body {
@@ -299,9 +304,19 @@
                 <span class="w-2 h-2 rounded-full bg-yellow-500 mr-1.5 animate-pulse"></span> Mendeteksi...
               </span>
             </div>
-            <button onclick="muatDataPresensi()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-3 rounded-lg text-xs transition flex items-center">
-              <i class="fas fa-redo-alt mr-1"></i> Segarkan Data
-            </button>
+            
+            <!-- MENU TOMBOL DOWNLOAD & REFRESH (Kekinian & Responsive) -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button onclick="muatDataPresensi()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-3 rounded-lg text-xs transition flex items-center">
+                <i class="fas fa-redo-alt mr-1"></i> Segarkan Data
+              </button>
+              <button onclick="unduhExcel()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition flex items-center shadow-sm">
+                <i class="fas fa-file-excel mr-1"></i> Excel
+              </button>
+              <button onclick="unduhPDF()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1.5 px-3 rounded-lg text-xs transition flex items-center shadow-sm">
+                <i class="fas fa-file-pdf mr-1"></i> PDF
+              </button>
+            </div>
           </div>
 
           <div class="overflow-x-auto">
@@ -462,6 +477,9 @@
     let sedangTransisiKamera = false; // Flag Pengaman untuk mencegah error "Cannot transition"
     let daftarKameraTersedia = [];
     let indeksKameraAktif = 0;
+    
+    // Variabel global penampung data presensi terbaru untuk unduhan
+    let dataPresensiTerbaru = [];
 
     // Deteksi apakah dijalankan di dalam Google Script / Standalone Preview / GitHub Pages
     const isGoogleScript = (typeof google !== 'undefined' && google.script && google.script.run);
@@ -892,6 +910,7 @@
     }
 
     function renderTabelPresensi(data) {
+      dataPresensiTerbaru = data; // Simpan salinan data aktif untuk unduhan PDF / Excel harian
       const tbody = document.getElementById("tabel-presensi");
       tbody.innerHTML = "";
       
@@ -918,6 +937,133 @@
         `;
         tbody.innerHTML += tr;
       });
+    }
+
+    // ==================== LOGIKA UNDUH / EXPORT (EXCEL & PDF) ====================
+    
+    // Fungsi Ekspor Excel (.xlsx) client-side menggunakan SheetJS
+    function unduhExcel() {
+      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
+        alert("Tidak ada data presensi harian untuk diunduh!");
+        return;
+      }
+
+      // Memetakan struktur kolom Excel
+      const formatDataExcel = dataPresensiTerbaru.map((item, index) => ({
+        "No": index + 1,
+        "Waktu Input": item.waktu,
+        "Nama Siswa": item.nama,
+        "NISN": item.nisn,
+        "Asal Sekolah (SD)": item.asalSd,
+        "Gugus / Kelompok": item.gugus,
+        "Status Kehadiran": item.status,
+        "Catatan": item.catatan || "-"
+      }));
+
+      // Proses konversi data JSON menjadi worksheet Excel
+      const worksheet = XLSX.utils.json_to_sheet(formatDataExcel);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi");
+
+      // Menyesuaikan lebar kolom otomatis agar teks terbaca rapi di Excel
+      const wscols = [
+        {wch: 5},  // No
+        {wch: 20}, // Waktu Input
+        {wch: 30}, // Nama Siswa
+        {wch: 12}, // NISN
+        {wch: 25}, // Asal SD
+        {wch: 20}, // Gugus
+        {wch: 18}, // Status
+        {wch: 20}  // Catatan
+      ];
+      worksheet['!cols'] = wscols;
+
+      // Men-download berkas .xlsx
+      XLSX.writeFile(workbook, "Data_Presensi_MPLS_SMPN_11_Palu.xlsx");
+    }
+
+    // Fungsi Ekspor PDF (.pdf) client-side menggunakan jsPDF & AutoTable
+    function unduhPDF() {
+      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
+        alert("Tidak ada data presensi harian untuk diunduh!");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      // Mendesain KOP Surat PDF Resmi
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138); // Tema Warna Utama: Navy Blue
+      doc.text("PANITIA MASA PENGENALAN LINGKUNGAN SEKOLAH (MPLS)", 14, 15);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(17, 24, 39);
+      doc.text("SMP NEGERI 11 PALU", 14, 22);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 27);
+
+      // Garis Batas KOP Surat
+      doc.setDrawColor(30, 58, 138);
+      doc.setLineWidth(0.8);
+      doc.line(14, 31, 196, 31);
+
+      // Judul Laporan
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(17, 24, 39);
+      doc.text("REKAPITULASI PRESENSI HARIAN PESERTA MPLS", 14, 40);
+
+      // Kepala Tabel PDF
+      const headers = [["No", "Waktu Presensi", "Nama Siswa", "Asal Sekolah SD", "Gugus", "Status"]];
+      
+      // Mengisi Data Tabel PDF
+      const rows = dataPresensiTerbaru.map((item, index) => [
+        index + 1,
+        item.waktu,
+        item.nama,
+        item.asalSd,
+        item.gugus,
+        item.status
+      ]);
+
+      // Membuat tabel otomatis dengan AutoTable
+      doc.autoTable({
+        head: headers,
+        body: rows,
+        startY: 45,
+        theme: "grid",
+        headStyles: { 
+          fillColor: [30, 58, 138], // Navy Blue Matching Header
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: "bold",
+          halign: "center"
+        },
+        bodyStyles: {
+          fontSize: 8.5,
+          textColor: [55, 65, 81]
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" }, // No
+          1: { cellWidth: 32, halign: "center" }, // Waktu
+          2: { cellWidth: 50 },                  // Nama
+          3: { cellWidth: 42 },                  // Asal SD
+          4: { cellWidth: 30, halign: "center" }, // Gugus
+          5: { cellWidth: 18, halign: "center" }  // Status
+        }
+      });
+
+      // Men-download berkas .pdf
+      doc.save("Laporan_Presensi_MPLS_SMPN_11_Palu.pdf");
     }
 
     function kirimPresensi() {
