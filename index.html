@@ -134,7 +134,7 @@
             <p class="text-xs text-gray-400">Masukkan kata sandi Admin untuk membuka fitur edit konten dan data.</p>
           </div>
           <div class="max-w-xs mx-auto">
-            <input type="password" id="input-admin-pin" placeholder="Sandi Default: admin11palu" class="w-full text-center p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none tracking-widest text-lg font-bold">
+            <input type="password" id="input-admin-pin" placeholder="Masukkan Sandi Admin" class="w-full text-center p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none tracking-widest text-lg font-bold">
             <button onclick="verifikasiPinAdmin()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md">
               <i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel
             </button>
@@ -828,6 +828,7 @@
       }
 
       // Jika terkoneksi (di Apps Script atau ada Cloud URL di Github), wajib divalidasi ke database Spreadsheet CONFIG
+      // Sandi offline "admin11palu" TIDAK AKAN BERFUNGSI lagi jika koneksi database aktif
       hubungiBackend("verifikasiPasswordAdmin_GS", [pin], function(result) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
@@ -835,26 +836,12 @@
         if (result && result.terverifikasi) {
           masukSebagaiAdmin();
         } else {
-          // BENTENG PERLINDUNGAN UTAMA: Jika sandi dari GSheets gagal / sheet belum disetup pada login pertama kali, 
-          // periksa kecocokan dengan sandi bawaan "admin11palu" agar admin tidak terkunci sistem.
-          const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
-          if (pin === "admin11palu" || pin === lokalPass) {
-            masukSebagaiAdmin();
-          } else {
-            tampilkanPesanSistem("Kesalahan Login", result.pesan || "Kata sandi yang Anda masukkan salah!", "error");
-          }
+          tampilkanPesanSistem("Kesalahan Login", result.pesan || "Kata sandi salah! Hanya kata sandi dari database Spreadsheet yang berlaku.", "error");
         }
       }, function(err) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
-        
-        // Jaringan bermasalah atau gagal terhubung ke Spreadsheet, gunakan lokal fallback
-        const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
-        if (pin === "admin11palu" || pin === lokalPass) {
-          masukSebagaiAdmin();
-        } else {
-          tampilkanPesanSistem("Koneksi Gagal", "Gagal memverifikasi: Tidak dapat terhubung ke database Spreadsheet!", "error");
-        }
+        tampilkanPesanSistem("Kesalahan Jaringan", "Gagal memverifikasi: Tidak dapat terhubung ke database Spreadsheet! Sandi offline tidak berlaku saat cloud terhubung.", "error");
       });
     }
 
@@ -1146,6 +1133,7 @@
       }, 1000);
     }
 
+    // Memutus koneksi cloud database
     function hapusGithubConfig() {
       localStorage.removeItem("mpls_cloud_db_url");
       const inputUrl = document.getElementById("input-web-app-url");
