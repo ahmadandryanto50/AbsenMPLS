@@ -9,7 +9,7 @@
   <!-- FontAwesome Icons -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- Google Fonts: Poppins -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght=300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- HTML5-QRCode Library untuk Scan Barcode/QR via Kamera (Versi stabil tanpa isu integritas) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <!-- SheetJS (xlsx) untuk Export Excel -->
@@ -447,11 +447,11 @@
 
           <!-- CONTAINER SCANNER CAMERA -->
           <div id="container-scanner" class="hidden space-y-3 mb-4">
-            <div class="relative bg-black rounded-xl overflow-hidden aspect-square border-4 border-blue-500 shadow-inner">
+            <div class="relative bg-black rounded-xl overflow-hidden min-h-[300px] md:min-h-[350px] border-4 border-blue-500 shadow-inner">
               <!-- Laser Line Overlay -->
               <div class="scanner-laser"></div>
               <!-- HTML5 QR Scanner Target -->
-              <div id="scanner-viewfinder" class="w-full h-full"></div>
+              <div id="scanner-viewfinder" class="w-full"></div>
             </div>
             
             <div class="flex space-x-2">
@@ -1301,38 +1301,106 @@
         btnScan.className = "flex-1 py-2 text-center rounded-lg bg-white text-blue-900 shadow";
         btnManual.className = "flex-1 py-2 text-center rounded-lg text-gray-600 hover:text-blue-900";
         containerScanner.classList.remove('hidden');
-        nyalakanPemindaiKamera();
+        setTimeout(nyalakanPemindaiKamera, 250); // Menambahkan jeda yang aman agar rendering DOM viewport selesai sempurna
       }
     }
 
     function nyalakanPemindaiKamera() {
-      if (kameraSedangAktif || sedangTransisiKamera) return; // MEMPERBAIKI TYPO sedandTransiniKamera -> sedangTransisiKamera secara permanen
+      if (kameraSedangAktif || sedangTransisiKamera) return;
 
-      Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length > 0) {
-          daftarKameraTersedia = devices;
-          let backCameraIndex = devices.findIndex(device => 
-            device.label.toLowerCase().includes('back') || 
-            device.label.toLowerCase().includes('environment') || 
-            device.label.toLowerCase().includes('rear')
-          );
-          
-          indeksKameraAktif = backCameraIndex !== -1 ? backCameraIndex : 0;
-          memulaiStreamKamera(daftarKameraTersedia[indeksKameraAktif].id);
-        } else {
-          tampilkanPesanSistem("Kamera Tidak Terdeteksi", "Sistem tidak mendeteksi perangkat kamera aktif!", "error");
+      if (typeof Html5Qrcode === 'undefined') {
+        tampilkanPesanSistem("Sistem Error", "Library kamera 'Html5Qrcode' gagal dimuat! Silakan hubungkan perangkat Anda ke internet.", "error");
+        return;
+      }
+
+      sedangTransisiKamera = true;
+
+      // Prioritaskan inisialisasi menggunakan facingMode: "environment" (kamera belakang)
+      // Ini bypass error izin & pencarian ID kamera yang sering crash di perangkat mobile & WebView
+      if (!pemindaiKamera) {
+        pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
+      }
+
+      pemindaiKamera.start(
+        { facingMode: "environment" }, 
+        {
+          fps: 15,
+          qrbox: (width, height) => {
+            const sideLength = Math.min(width, height) * 0.7;
+            return { width: sideLength, height: sideLength };
+          }
+        },
+        onScanSuccess,
+        onScanFailure
+      ).then(() => {
+        kameraSedangAktif = true;
+        sedangTransisiKamera = false;
+        const btnToggle = document.getElementById('btn-toggle-scanner');
+        if (btnToggle) {
+          btnToggle.className = "flex-1 bg-red-500 hover:bg-red-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
+          btnToggle.innerHTML = `<i class="fas fa-stop mr-1.5"></i> Matikan Kamera`;
         }
+        // Ambil daftar kamera sebagai pendukung pergantian manual secara background
+        Html5Qrcode.getCameras().then(devices => {
+          if (devices && devices.length > 0) {
+            daftarKameraTersedia = devices;
+          }
+        }).catch(err => {
+          console.warn("Gagal mendapatkan perangkat kamera cadangan:", err);
+        });
       }).catch(err => {
-        tampilkanPesanSistem("Gagal Kamera", "Gagal mengakses daftar kamera: " + err, "error");
+        console.warn("Inisialisasi kamera standard gagal, mencoba dengan deteksi manual ID kamera...", err);
+        
+        // Fallback jika instansiasi facingMode environment ditolak/tidak disupport peramban
+        Html5Qrcode.getCameras().then(devices => {
+          if (devices && devices.length > 0) {
+            daftarKameraTersedia = devices;
+            indeksKameraAktif = 0;
+            // Ambil kamera belakang manual jika terdeteksi
+            let backCameraIndex = devices.findIndex(device => 
+              device.label.toLowerCase().includes('back') || 
+              device.label.toLowerCase().includes('environment') || 
+              device.label.toLowerCase().includes('rear')
+            );
+            if (backCameraIndex !== -1) {
+              indeksKameraAktif = backCameraIndex;
+            }
+            
+            pemindaiKamera.start(
+              daftarKameraTersedia[indeksKameraAktif].id,
+              {
+                fps: 15,
+                qrbox: (width, height) => {
+                  const sideLength = Math.min(width, height) * 0.7;
+                  return { width: sideLength, height: sideLength };
+                }
+              },
+              onScanSuccess,
+              onScanFailure
+            ).then(() => {
+              kameraSedangAktif = true;
+              sedangTransisiKamera = false;
+            }).catch(err2 => {
+              sedangTransisiKamera = false;
+              tampilkanPesanSistem("Kamera Gagal", "Gagal memulai stream kamera: " + err2.message, "error");
+            });
+          } else {
+            sedangTransisiKamera = false;
+            tampilkanPesanSistem("Kamera Tidak Terdeteksi", "Sistem tidak mendeteksi perangkat kamera aktif atau izin akses kamera ditolak!", "error");
+          }
+        }).catch(err3 => {
+          sedangTransisiKamera = false;
+          tampilkanPesanSistem("Gagal Kamera", "Gagal mengakses daftar kamera: " + err3.message, "error");
+        });
       });
     }
 
-    // Memulai stream viewfinder dari kamera terpilih
+    // Memulai stream viewfinder dari kamera terpilih saat user mengganti kamera secara manual
     function memulaiStreamKamera(cameraId) {
-      if (sedangTransisiKamera) return;
+      if (!pemindaiKamera) return;
       sedangTransisiKamera = true;
 
-      if (pemindaiKamera && kameraSedangAktif) {
+      if (kameraSedangAktif) {
         pemindaiKamera.stop().then(() => {
           kameraSedangAktif = false;
           aktifkanInstansiPemindai(cameraId);
@@ -1346,10 +1414,6 @@
     }
 
     function aktifkanInstansiPemindai(cameraId) {
-      if (!pemindaiKamera) {
-        pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
-      }
-      
       pemindaiKamera.start(
         cameraId, 
         {
@@ -1371,11 +1435,11 @@
         }
       }).catch(err => {
         sedangTransisiKamera = false;
-        console.error("Gagal menjalankan kamera scanner: ", err);
+        tampilkanPesanSistem("Gagal Kamera", "Gagal mengaktifkan kamera terpilih: " + err.message, "error");
       });
     }
 
-    // Pemrosesan Pemindaian Mandiri yang Ultra Tangguh & Toleran Spasi / Karakter
+    // Pemrosesan Pemindaian Mandiri yang Ultra Tangguh & Toleran Terhadap Spasi / Karakter Pemisah
     function onScanSuccess(decodedText, decodedResult) {
       mainkanNadaBip();
       console.log("Barcode/QR Terdeteksi: ", decodedText);
@@ -1385,18 +1449,27 @@
       
       // Deteksi format terstruktur MPLS:Nama Siswa|Asal Sekolah secara Case-Insensitive (MPLS: / mpls:)
       if (cleanText.toUpperCase().startsWith("MPLS:")) {
-        const rawData = cleanText.substring(5); // removes "MPLS:" secara aman
-        const parts = rawData.split("|");
+        // Hapus awalan "MPLS:" secara aman dan pangkas spasi kosongnya
+        let rawData = cleanText.substring(5).trim();
+        
+        // Pisahkan data menggunakan karakter pemisah umum seperti pipa '|', koma ',', atau titik koma ';'
+        let parts = rawData.split(/[|;,]/);
         if (parts.length >= 1) {
-          document.getElementById("absen-nama").value = parts[0] ? parts[0].trim() : "";
-          document.getElementById("absen-sd").value = parts[1] ? parts[1].trim() : "";
-          tampilkanNotifikasiEkstraScan("Data QR Siswa Terdeteksi! Mengirim data presensi...");
+          const namaSiswa = parts[0] ? parts[0].trim() : "";
+          const asalSD = parts[1] ? parts[1].trim() : "";
+          
+          document.getElementById("absen-nama").value = namaSiswa;
+          document.getElementById("absen-sd").value = asalSD || "-";
+          
+          tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswa + "' terdeteksi! Mengirim data presensi harian...");
+          
+          // Kirim presensi otomatis setelah jeda singkat agar input terisi secara visual di form terlebih dahulu
           setTimeout(kirimPresensi, 1000);
           return;
         }
       }
 
-      // Fallback jika memindai teks mentah biasa (dianggap Nama)
+      // Fallback jika memindai teks biasa (dianggap sebagai Nama Lengkap)
       document.getElementById("absen-nama").value = cleanText;
       tampilkanNotifikasiEkstraScan("Teks terdeteksi! Nama berhasil diisi.");
     }
@@ -1478,6 +1551,182 @@
           </tr>
         `;
         tbody.innerHTML += tr;
+      });
+    }
+
+    function ubahUIPemindaiMati() {
+      const btnToggle = document.getElementById('btn-toggle-scanner');
+      if (btnToggle) {
+        btnToggle.className = "flex-1 bg-green-500 hover:bg-green-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
+        btnToggle.innerHTML = `<i class="fas fa-play mr-1.5"></i> Aktifkan Kamera`;
+      }
+    }
+
+    function mainkanNadaBip() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        
+        oscillator.start();
+        setTimeout(() => {
+          oscillator.stop();
+          audioCtx.close();
+        }, 120);
+      } catch (err) { }
+    }
+
+    function tampilkanNotifikasiEkstraScan(pesan) {
+      const notif = document.getElementById("notif-absen");
+      tampilkanNotifikasi(notif, "Info: " + pesan, true);
+    }
+
+    // ==================== REKAP UNDUHAN (EXCEL & PDF) ====================
+    function unduhExcel() {
+      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
+        tampilkanPesanSistem("Perhatian", "Tidak ada data presensi harian untuk diunduh!", "error");
+        return;
+      }
+
+      const formatDataExcel = dataPresensiTerbaru.map((item, index) => ({
+        "No": index + 1,
+        "Waktu Input": item.waktu,
+        "Nama Siswa": item.nama,
+        "NISN": item.nisn,
+        "Asal Sekolah (SD)": item.asalSd,
+        "Gugus / Kelompok": item.gugus,
+        "Status Kehadiran": item.status,
+        "Catatan": item.catatan || "-"
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formatDataExcel);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi");
+
+      const wscols = [
+        {wch: 5}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 25}, {wch: 20}, {wch: 18}, {wch: 20}
+      ];
+      worksheet['!cols'] = wscols;
+      XLSX.writeFile(workbook, "Data_Presensi_MPLS_SMPN_11_Palu.xlsx");
+    }
+
+    function unduhPDF() {
+      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
+        tampilkanPesanSistem("Peringatan", "Tidak ada data presensi harian untuk diunduh!", "error");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138); 
+      doc.text("PANITIA MASA PENGENALAN LINGKUNGAN SEKOLAH (MPLS)", 14, 15);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(17, 24, 39);
+      doc.text("SMP NEGERI 11 PALU", 14, 22);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 27);
+
+      doc.setDrawColor(30, 58, 138);
+      doc.setLineWidth(0.8);
+      doc.line(14, 31, 196, 31);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(17, 24, 39);
+      doc.text("REKAPITULASI PRESENSI HARIAN PESERTA MPLS", 14, 40);
+
+      const headers = [["No", "Waktu Presensi", "Nama Siswa", "Asal Sekolah SD", "Gugus", "Status"]];
+      const rows = dataPresensiTerbaru.map((item, index) => [
+        index + 1, item.waktu, item.nama, item.asalSd, item.gugus, item.status
+      ]);
+
+      doc.autoTable({
+        head: headers,
+        body: rows,
+        startY: 45,
+        theme: "grid",
+        headStyles: { 
+          fillColor: [30, 58, 138], 
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: "bold",
+          halign: "center"
+        },
+        bodyStyles: { fontSize: 8.5, textColor: [55, 65, 81] },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 32, halign: "center" },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 42 },
+          4: { cellWidth: 30, halign: "center" },
+          5: { cellWidth: 18, halign: "center" }
+        }
+      });
+
+      doc.save("Laporan_Presensi_MPLS_SMPN_11_Palu.pdf");
+    }
+
+    function kirimPresensi() {
+      const nama = document.getElementById("absen-nama").value.trim();
+      let sd = document.getElementById("absen-sd").value.trim();
+      const btn = document.getElementById("btn-submit-presensi");
+      const notif = document.getElementById("notif-absen");
+
+      const nisn = "-";
+      const gugus = "Siswa Baru";
+      const status = "Hadir";
+      const catatan = "-";
+
+      if (!nama) {
+        tampilkanNotifikasi(notif, "Peringatan: Mohon isi Nama Lengkap Anda!", false);
+        return;
+      }
+      if (!sd) {
+        sd = "-";
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner animate-spin mr-2"></i>Menyimpan...`;
+
+      hubungiBackend("simpanPresensiSiswa", [nama, nisn, sd, gugus, status, catatan], function(response) {
+        btn.disabled = false;
+        if (btn) btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Submit Presensi`;
+        
+        if (response.indexOf("Sukses") > -1) {
+          tampilkanNotifikasi(notif, response, true);
+          document.getElementById("absen-nama").value = "";
+          document.getElementById("absen-sd").value = "";
+          
+          matikanPemindaiKamera();
+          setPresensiMode('manual');
+
+          muatDataPresensi();
+          muatStatistikDashboard();
+        } else {
+          tampilkanNotifikasi(notif, response, false);
+        }
+      }, function(err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Submit Presensi`;
+        }
+        tampilkanNotifikasi(notif, "Error: Gagal terhubung ke server cloud.", false);
       });
     }
 
@@ -1579,6 +1828,7 @@
     }
 
     // Kustom Modal Alert Handler untuk mengganti Alert bawaan browser
+    // Menghindari modal dialog terblokir di iframe sandbox
     function tampilkanPesanSistem(judul, pesan, tipe = 'info') {
       const modal = document.getElementById("custom-alert-modal");
       const iconDiv = document.getElementById("custom-alert-icon");
