@@ -178,6 +178,19 @@
                 <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi Selamat Datang</label>
                 <textarea id="edit-welcome-desc" rows="3" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none"></textarea>
               </div>
+              
+              <!-- EDIT LOKASI DAN TANGGAL SECARA MANUAL -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Lokasi Kegiatan</label>
+                  <input type="text" id="edit-location" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 mb-1">Waktu Pelaksanaan</label>
+                  <input type="text" id="edit-date" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none">
+                </div>
+              </div>
+
               <div class="border-t pt-3">
                 <label class="block text-xs font-bold text-blue-900 mb-1"><i class="fas fa-eye mr-1"></i> Visi Sekolah</label>
                 <input type="text" id="edit-visi" class="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none font-medium italic">
@@ -288,10 +301,10 @@
           </p>
           <div class="flex flex-wrap gap-2 pt-2">
             <span class="bg-gray-100 border text-gray-700 text-xs px-3 py-1.5 rounded-lg flex items-center">
-              <i class="fas fa-map-marker-alt text-red-500 mr-1.5"></i> Kec. Palu Timur, Kota Palu
+              <i class="fas fa-map-marker-alt text-red-500 mr-1.5"></i> <span id="home-location">Kec. Palu Timur, Kota Palu</span>
             </span>
             <span class="bg-gray-100 border text-gray-700 text-xs px-3 py-1.5 rounded-lg flex items-center">
-              <i class="fas fa-calendar-day text-blue-500 mr-1.5"></i> Juli 2026
+              <i class="fas fa-calendar-day text-blue-500 mr-1.5"></i> <span id="home-date">Juli 2026</span>
             </span>
           </div>
         </div>
@@ -587,7 +600,9 @@
       visi: "Unggul dalam Prestasi, Berkarakter Mulia, dan Peduli Lingkungan Berlandaskan IMTAQ.",
       misi_1: "Menumbuhkan penghayatan terhadap ajaran agama yang dianut secara toleran.",
       misi_2: "Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis dan non-akademis.",
-      misi_3: "Membentuk karakter disiplin, sopan santun, dan cinta tanah air."
+      misi_3: "Membentuk karakter disiplin, sopan santun, dan cinta tanah air.",
+      location: "Kec. Palu Timur, Kota Palu",
+      date: "Juli 2026"
     };
 
     let appJadwal = [
@@ -670,6 +685,11 @@
       document.getElementById("home-welcome-title").innerText = appConfig.welcome_title;
       document.getElementById("home-welcome-desc").innerText = appConfig.welcome_desc;
       document.getElementById("home-visi-text").innerText = `"${appConfig.visi}"`;
+      
+      const homeLoc = document.getElementById("home-location");
+      const homeDate = document.getElementById("home-date");
+      if (homeLoc) homeLoc.innerText = appConfig.location || "Kec. Palu Timur, Kota Palu";
+      if (homeDate) homeDate.innerText = appConfig.date || "Juli 2026";
       
       const listMisi = document.getElementById("home-misi-list");
       listMisi.innerHTML = `
@@ -776,6 +796,8 @@
     function siapkanInputAdminForm() {
       document.getElementById("edit-welcome-title").value = appConfig.welcome_title;
       document.getElementById("edit-welcome-desc").value = appConfig.welcome_desc;
+      document.getElementById("edit-location").value = appConfig.location || "";
+      document.getElementById("edit-date").value = appConfig.date || "";
       document.getElementById("edit-visi").value = appConfig.visi;
       document.getElementById("edit-misi-1").value = appConfig.misi_1;
       document.getElementById("edit-misi-2").value = appConfig.misi_2;
@@ -799,6 +821,8 @@
     function simpanEditBeranda() {
       appConfig.welcome_title = document.getElementById("edit-welcome-title").value.trim();
       appConfig.welcome_desc = document.getElementById("edit-welcome-desc").value.trim();
+      appConfig.location = document.getElementById("edit-location").value.trim();
+      appConfig.date = document.getElementById("edit-date").value.trim();
       appConfig.visi = document.getElementById("edit-visi").value.trim();
       appConfig.misi_1 = document.getElementById("edit-misi-1").value.trim();
       appConfig.misi_2 = document.getElementById("edit-misi-2").value.trim();
