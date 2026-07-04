@@ -842,7 +842,7 @@
       }, function(err) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
-        tampilkanPesanSistem("Kesalahan Jaringan / Koneksi", "Gagal memverifikasi: Tidak dapat terhubung ke database Spreadsheet! Pengaman luring (offline bypass) dinonaktifkan saat database cloud aktif.", "error");
+        tampilkanPesanSistem("Kesalahan Koneksi", "Gagal memverifikasi: " + err, "error");
       });
     }
 
@@ -1306,7 +1306,7 @@
     }
 
     function nyalakanPemindaiKamera() {
-      if (kameraSedangAktif || sedangTransiniKamera) return;
+      if (kameraSedangAktif || sedangTransisiKamera) return; // MEMPERBAIKI TYPO sedandTransiniKamera -> sedangTransisiKamera
 
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length > 0) {
@@ -1602,6 +1602,7 @@
       modal.classList.remove("hidden");
     }
     
+    // Helper Penutup Modal Alert
     function tutupPesanSistem() {
       const modal = document.getElementById("custom-alert-modal");
       if (modal) modal.classList.add("hidden");
