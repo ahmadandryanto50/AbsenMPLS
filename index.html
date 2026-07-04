@@ -606,3 +606,1099 @@
 
     // VARIABEL GLOBAL PENAMPUNG KONTEN BERANDA & JADWAL (HYBRID PRESETS)
     let appConfig = {
+      welcome_title: "Halo Calon Siswa Baru SMPN 11 Palu!",
+      welcome_desc: "Selamat datang di gerbang masa depanmu. Aplikasi MPLS Digital ini dirancang untuk memudahkan kalian mengikuti seluruh rangkaian kegiatan dengan asyik, interaktif, dan tentunya praktis!",
+      visi: "Unggul dalam Prestasi, Berkarakter Mulia, dan Peduli Lingkungan Berlandaskan IMTAQ.",
+      misi_1: "Menumbuhkan penghayatan terhadap ajaran agama yang dianut secara toleran.",
+      misi_2: "Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis and non-akademis.",
+      misi_3: "Membentuk karakter disiplin, sopan santun, and cinta tanah air.",
+      location: "Kec. Palu Timur, Kota Palu",
+      date: "Juli 2026"
+    };
+
+    let appJadwal = [
+      { hari: "HARI KE-1", jam: "07:15 - 12:00 WITA", judul: "Pembukaan & Pengenalan Sekolah", desc: "Upacara pembukaan MPLS oleh Kepala Sekolah, pengenalan guru/staf, and pembagian ruang kelas tetap masing-masing siswa." },
+      { hari: "HARI KE-2", jam: "07:30 - 12:00 WITA", judul: "Materi Karakter & Tata Tertib", desc: "Sosialisasi kurikulum baru, pembinaan karakter/budi pekerti, penyuluhan pencegahan perundungan (bullying), serta tur keliling sarana prasarana sekolah." },
+      { hari: "HARI KE-3", jam: "07:30 - 12:30 WITA", judul: "Demo Ekskul & Penutupan", desc: "Pementasan atraktif dari ekstrakurikuler (Pramuka, PMR, Olahraga, Seni Musik), pembagian hadiah siswa terbaik gugus, and doa bersama." }
+    ];
+    
+    // Variabel global penampung data presensi terbaru untuk unduhan & manajemen admin
+    let dataPresensiTerbaru = [];
+
+    // Deteksi apakah dijalankan di dalam Google Script / Standalone Preview / GitHub Pages
+    const isGoogleScript = (typeof google !== 'undefined' && google.script && google.script.run);
+
+    // Penanganan Tab Switcher
+    function switchTab(tabId) {
+      document.getElementById('tab-beranda').classList.add('hidden');
+      document.getElementById('tab-presensi').classList.add('hidden');
+      document.getElementById('tab-jadwal').classList.add('hidden');
+      document.getElementById('tab-tanya').classList.add('hidden');
+      
+      document.getElementById('btn-tab-beranda').classList.remove('active-tab');
+      document.getElementById('btn-tab-presensi').classList.remove('active-tab');
+      document.getElementById('btn-tab-jadwal').classList.remove('active-tab');
+      document.getElementById('btn-tab-tanya').classList.remove('active-tab');
+      
+      document.getElementById('tab-' + tabId).classList.remove('hidden');
+      document.getElementById('btn-tab-' + tabId).classList.add('active-tab');
+      
+      if (tabId !== 'presensi') {
+        matikanPemindaiKamera();
+      }
+
+      if (tabId === 'presensi') {
+        muatDataPresensi();
+      } else if (tabId === 'tanya') {
+        muatDataPertanyaan();
+      } else if (tabId === 'beranda') {
+        muatStatistikDashboard();
+      }
+    }
+
+    // Dummy data untuk simulasi lokal (offline fallback jika cloud belum terhubung di GitHub)
+    let dummyPresensi = [
+      { waktu: "04 Jul, 08:30 WITA", nama: "Ahmad Fathir", nisn: "-", asalSd: "SDN 1 Palu", gugus: "Siswa Baru", status: "Hadir", catatan: "-" },
+      { waktu: "04 Jul, 08:15 WITA", nama: "Siti Rahmawati", nisn: "-", asalSd: "SDN 3 Palu", gugus: "Siswa Baru", status: "Hadir", catatan: "-" },
+      { waktu: "04 Jul, 07:55 WITA", nama: "I Made Sugiarta", nisn: "-", asalSd: "SDN 5 Palu", gugus: "Siswa Baru", status: "Hadir", catatan: "-" }
+    ];
+
+    let dummyTanya = [
+      { nama: "Rian Hidayat", gugus: "Gugus 1 - Tadulako", pertanyaan: "Kak, besok seragamnya pakai baju apa?", status: "Sudah Dijawab", jawaban: "Pakai seragam olahraga dari SD asal ya dek." },
+      { nama: "Keysha Olivia", gugus: "Gugus 2 - Palola", pertanyaan: "Lokasi aula pertemuan di sebelah mana ya?", status: "Belum Dijawab", jawaban: "Menunggu respon panitia..." }
+    ];
+
+    // Mulai inisialisasi pada saat DOM siap
+    document.addEventListener("DOMContentLoaded", function() {
+      muatCadanganKontenLokal(); // Ambil modifikasi Beranda & Jadwal dari LocalStorage terlebih dahulu
+      inisialisasiGithubEnvironment();
+      muatStatistikDashboard();
+      muatDataPresensi(); // Muat data presensi pertama kali saat web dimuat
+      renderDynamicBeranda();
+      renderDynamicJadwal();
+    });
+
+    // ==================== LOGIKA MEMUAT & MENAMPILKAN KONTEN SECARA DINAMIS ====================
+    
+    // Ambil data Beranda dan Jadwal dari LocalStorage jika ada modifikasi tersimpan harian
+    function muatCadanganKontenLokal() {
+      const lokalConfig = localStorage.getItem("mpls_app_config");
+      const lokalJadwal = localStorage.getItem("mpls_app_jadwal");
+      if (lokalConfig) {
+        try { appConfig = JSON.parse(lokalConfig); } catch(e) {}
+      }
+      if (lokalJadwal) {
+        try { appJadwal = JSON.parse(lokalJadwal); } catch(e) {}
+      }
+    }
+
+    // Menggambar data Visi, Misi dan Jumbotron Beranda
+    function renderDynamicBeranda() {
+      document.getElementById("home-welcome-title").innerText = appConfig.welcome_title;
+      document.getElementById("home-welcome-desc").innerText = appConfig.welcome_desc;
+      document.getElementById("home-visi-text").innerText = `"${appConfig.visi}"`;
+      
+      const homeLoc = document.getElementById("home-location");
+      const homeDate = document.getElementById("home-date");
+      if (homeLoc) homeLoc.innerText = appConfig.location || "Kec. Palu Timur, Kota Palu";
+      if (homeDate) homeDate.innerText = appConfig.date || "Juli 2026";
+      
+      const listMisi = document.getElementById("home-misi-list");
+      listMisi.innerHTML = `
+        <li>${appConfig.misi_1}</li>
+        <li>${appConfig.misi_2}</li>
+        <li>${appConfig.misi_3}</li>
+      `;
+    }
+
+    // Menggambar lini masa (timeline) jadwal harian siswa
+    function renderDynamicJadwal() {
+      const container = document.getElementById("home-timeline-container");
+      container.innerHTML = "";
+      
+      appJadwal.forEach((j, i) => {
+        let alignClass = i % 2 === 0 ? "" : "md:flex-row-reverse";
+        let orderClass = i % 2 === 0 ? "md:text-right md:pr-10" : "md:text-left md:pl-10";
+        let colorDot = i === 0 ? "bg-blue-600" : (i === 1 ? "bg-yellow-500" : "bg-green-600");
+        let badgeColor = i === 0 ? "bg-blue-100 text-blue-800" : (i === 1 ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800");
+        
+        let block = `
+          <div class="relative flex flex-col md:flex-row items-start md:items-center ${alignClass}">
+            <div class="absolute left-4 md:left-1/2 w-4 h-4 rounded-full ${colorDot} -translate-x-1.5 border-4 border-white shadow-md"></div>
+            <div class="pl-10 md:pl-0 md:w-1/2 ${orderClass}">
+              <span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold uppercase ${badgeColor}">${j.hari}</span>
+              <h4 class="text-base font-bold text-gray-800 mt-1">${j.judul}</h4>
+              <p class="text-xs text-gray-500 mt-0.5"><i class="far fa-clock mr-1"></i> ${j.jam}</p>
+            </div>
+            <div class="pl-10 md:pl-10 md:w-1/2 mt-2 md:mt-0 text-sm text-gray-600">
+              ${j.desc}
+            </div>
+          </div>
+        `;
+        container.innerHTML += block;
+      });
+    }
+
+    // ==================== OPERASIONAL PANEL ADMIN & PENGAMANAN PIN ====================
+    function bukaPanelAdmin() {
+      toggleGithubConfigModal();
+      if (!adminTerverifikasi) {
+        document.getElementById("admin-auth-screen").classList.remove("hidden");
+        document.getElementById("admin-main-panel").classList.add("hidden");
+        document.getElementById("btn-admin-logout").classList.add("hidden");
+      } else {
+        document.getElementById("admin-auth-screen").classList.add("hidden");
+        document.getElementById("admin-main-panel").classList.remove("hidden");
+        document.getElementById("btn-admin-logout").classList.remove("hidden");
+        siapkanInputAdminForm();
+      }
+    }
+
+    // Verifikasi Kata Sandi Admin (Sekarang Dinamis Terintegrasi dengan GSheets)
+    function verifikasiPinAdmin() {
+      const pin = document.getElementById("input-admin-pin").value.trim();
+      const btn = document.querySelector("#admin-auth-screen button");
+      
+      if (!pin) {
+        alert("Mohon masukkan kata sandi!");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner animate-spin mr-1.5"></i> Memverifikasi...`;
+
+      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+
+      // Perbaikan Utama: Jika berjalan secara offline murni tanpa adanya database cloud / apps script terhubung
+      if (!isGoogleScript && !cloudUrl) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
+        const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
+        if (pin === lokalPass) {
+          adminTerverifikasi = true;
+          document.getElementById("input-admin-pin").value = "";
+          
+          document.getElementById("admin-auth-screen").classList.add("hidden");
+          document.getElementById("admin-main-panel").classList.remove("hidden");
+          document.getElementById("btn-admin-logout").classList.remove("hidden");
+          
+          siapkanInputAdminForm();
+          muatDataKelolaPresensiAdmin();
+        } else {
+          alert("Kata sandi salah! (Sandi offline default: admin11palu)");
+        }
+        return;
+      }
+
+      // Jika terkoneksi (di Apps Script atau ada Cloud URL di Github), wajib divalidasi ke database Spreadsheet CONFIG
+      hubungiBackend("verifikasiPasswordAdmin_GS", [pin], function(result) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
+        
+        if (result && result.terverifikasi) {
+          adminTerverifikasi = true;
+          document.getElementById("input-admin-pin").value = "";
+          
+          const authScreen = document.getElementById("admin-auth-screen");
+          if (authScreen) authScreen.classList.add("hidden");
+          
+          const mainPanel = document.getElementById("admin-main-panel");
+          if (mainPanel) mainPanel.classList.remove("hidden");
+          
+          const logoutBtn = document.getElementById("btn-admin-logout");
+          if (logoutBtn) logoutBtn.classList.remove("hidden");
+          
+          siapkanInputAdminForm();
+          muatDataKelolaPresensiAdmin();
+        } else {
+          alert(result.pesan || "Kata sandi yang Anda masukkan salah!");
+        }
+      }, function(err) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
+        alert("Gagal memverifikasi: Tidak dapat terhubung ke database Spreadsheet!");
+      });
+    }
+
+    // Fungsi Ganti Password Admin dari Panel Web
+    function gantiPasswordAdmin() {
+      const newPass = document.getElementById("input-new-admin-password").value.trim();
+      if (!newPass) {
+        alert("Kata sandi baru tidak boleh kosong!");
+        return;
+      }
+      
+      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+      
+      // Jika berada di GitHub Pages tanpa konfigurasi Cloud URL, langsung tolak simpan murni ke Sheets
+      if (!isGoogleScript && !cloudUrl) {
+        alert("Koneksi Database Cloud belum terhubung!\nSilakan isi URL Web App di atas dan simpan terlebih dahulu agar dapat memperbarui sandi langsung ke Spreadsheet.");
+        return;
+      }
+
+      if (confirm("Apakah Anda yakin ingin mengganti kata sandi admin?")) {
+        const btnChange = document.querySelector("#sub-admin-db button[onclick='gantiPasswordAdmin()']");
+        btnChange.disabled = true;
+        btnChange.innerHTML = `<i class="fas fa-spinner animate-spin"></i> Memproses...`;
+
+        hubungiBackend("ubahPasswordAdmin_GS", [newPass], function(response) {
+          btnChange.disabled = false;
+          btnChange.innerHTML = "Update Sandi";
+          
+          if (response.indexOf("Sukses") > -1) {
+            localStorage.setItem("mpls_admin_password", newPass);
+            document.getElementById("input-new-admin-password").value = "";
+            alert(response);
+          } else {
+            alert(response);
+          }
+        }, function(err) {
+          btnChange.disabled = false;
+          btnChange.innerHTML = "Update Sandi";
+          alert("Gagal menyambung ke server cloud: " + err + "\nKata sandi tidak dapat diubah tanpa koneksi Spreadsheet aktif.");
+        });
+      }
+    }
+
+    function lockAdminPanel() {
+      adminTerverifikasi = false;
+      document.getElementById("admin-auth-screen").classList.remove("hidden");
+      document.getElementById("admin-main-panel").classList.add("hidden");
+      document.getElementById("btn-admin-logout").classList.add("hidden");
+    }
+
+    // Menghidupkan tab sub-admin dalam modal
+    function setTabAdmin(subTab) {
+      document.getElementById("sub-admin-db").classList.add("hidden");
+      document.getElementById("sub-admin-beranda").classList.add("hidden");
+      document.getElementById("sub-admin-jadwal").classList.add("hidden");
+      document.getElementById("sub-admin-presensi").classList.add("hidden");
+      
+      document.getElementById("btn-tab-admin-db").className = "px-3 py-2 border-b-2 border-transparent hover:text-blue-600 whitespace-nowrap";
+      document.getElementById("btn-tab-admin-beranda").className = "px-3 py-2 border-b-2 border-transparent hover:text-blue-600 whitespace-nowrap";
+      document.getElementById("btn-tab-admin-jadwal").className = "px-3 py-2 border-b-2 border-transparent hover:text-blue-600 whitespace-nowrap";
+      document.getElementById("btn-tab-admin-presensi").className = "px-3 py-2 border-b-2 border-transparent hover:text-blue-600 whitespace-nowrap";
+      
+      document.getElementById("sub-admin-" + subTab).classList.remove("hidden");
+      document.getElementById("btn-tab-admin-" + subTab).className = "px-3 py-2 border-b-2 border-blue-600 text-blue-600 whitespace-nowrap";
+      
+      if (subTab === 'presensi') {
+        muatDataKelolaPresensiAdmin();
+      }
+    }
+
+    // Masukkan data aktif ke dalam field form Admin
+    function siapkanInputAdminForm() {
+      document.getElementById("edit-welcome-title").value = appConfig.welcome_title;
+      document.getElementById("edit-welcome-desc").value = appConfig.welcome_desc;
+      document.getElementById("edit-location").value = appConfig.location || "";
+      document.getElementById("edit-date").value = appConfig.date || "";
+      document.getElementById("edit-visi").value = appConfig.visi;
+      document.getElementById("edit-misi-1").value = appConfig.misi_1;
+      document.getElementById("edit-misi-2").value = appConfig.misi_2;
+      document.getElementById("edit-misi-3").value = appConfig.misi_3;
+      
+      // Hari 1
+      document.getElementById("edit-j1-jam").value = appJadwal[0].jam;
+      document.getElementById("edit-j1-judul").value = appJadwal[0].judul;
+      document.getElementById("edit-j1-desc").value = appJadwal[0].desc;
+      // Hari 2
+      document.getElementById("edit-j2-jam").value = appJadwal[1].jam;
+      document.getElementById("edit-j2-judul").value = appJadwal[1].judul;
+      document.getElementById("edit-j2-desc").value = appJadwal[1].desc;
+      // Hari 3
+      document.getElementById("edit-j3-jam").value = appJadwal[2].jam;
+      document.getElementById("edit-j3-judul").value = appJadwal[2].judul;
+      document.getElementById("edit-j3-desc").value = appJadwal[2].desc;
+    }
+
+    // Simpan Perubahan Beranda
+    function simpanEditBeranda() {
+      appConfig.welcome_title = document.getElementById("edit-welcome-title").value.trim();
+      appConfig.welcome_desc = document.getElementById("edit-welcome-desc").value.trim();
+      appConfig.location = document.getElementById("edit-location").value.trim();
+      appConfig.date = document.getElementById("edit-date").value.trim();
+      appConfig.visi = document.getElementById("edit-visi").value.trim();
+      appConfig.misi_1 = document.getElementById("edit-misi-1").value.trim();
+      appConfig.misi_2 = document.getElementById("edit-misi-2").value.trim();
+      appConfig.misi_3 = document.getElementById("edit-misi-3").value.trim();
+      
+      localStorage.setItem("mpls_app_config", JSON.stringify(appConfig));
+      renderDynamicBeranda();
+      
+      // Simpan juga ke Spreadsheet jika terkoneksi
+      hubungiBackend("simpanKontenBeranda_GS", [appConfig], function(r) {
+        console.log("Berhasil sinkronisasi Beranda ke Spreadsheet!");
+      });
+
+      alert("Sukses: Konten Beranda berhasil diperbarui!");
+    }
+
+    // Simpan Perubahan Jadwal
+    function simpanEditJadwal() {
+      appJadwal[0].jam = document.getElementById("edit-j1-jam").value.trim();
+      appJadwal[0].judul = document.getElementById("edit-j1-judul").value.trim();
+      appJadwal[0].desc = document.getElementById("edit-j1-desc").value.trim();
+
+      appJadwal[1].jam = document.getElementById("edit-j2-jam").value.trim();
+      appJadwal[1].judul = document.getElementById("edit-j2-judul").value.trim();
+      appJadwal[1].desc = document.getElementById("edit-j2-desc").value.trim();
+
+      appJadwal[2].jam = document.getElementById("edit-j3-jam").value.trim();
+      appJadwal[2].judul = document.getElementById("edit-j3-judul").value.trim();
+      appJadwal[2].desc = document.getElementById("edit-j3-desc").value.trim();
+
+      localStorage.setItem("mpls_app_jadwal", JSON.stringify(appJadwal));
+      renderDynamicJadwal();
+      
+      // Simpan juga ke Spreadsheet jika terkoneksi
+      hubungiBackend("simpanKontenJadwal_GS", [appJadwal], function(r) {
+        console.log("Berhasil sinkronisasi Jadwal ke Spreadsheet!");
+      });
+
+      alert("Sukses: Lini masa Jadwal MPLS berhasil diperbarui!");
+    }
+
+    // Memuat daftar presensi khusus untuk panel kelola admin
+    function muatDataKelolaPresensiAdmin() {
+      const tbody = document.getElementById("admin-tabel-kelola");
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-400 italic"><i class="fas fa-spinner animate-spin"></i> Memuat data siswa...</td></tr>`;
+      
+      hubungiBackend("ambilDaftarPresensi", [], function(data) {
+        tbody.innerHTML = "";
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-400 italic">Belum ada siswa yang absen harian.</td></tr>`;
+          return;
+        }
+        
+        data.forEach((item, index) => {
+          let tr = `
+            <tr class="border-b">
+              <td class="px-2.5 py-2 font-semibold text-gray-800">${item.nama}</td>
+              <td class="px-2.5 py-2 text-gray-500">${item.asalSd}</td>
+              <td class="px-2.5 py-2 text-center">
+                <select onchange="ubahStatusSiswaAdmin(${index}, this.value)" class="p-1 border rounded bg-white text-xs font-bold">
+                  <option value="Hadir" ${item.status === 'Hadir' ? 'selected' : ''}>Hadir</option>
+                  <option value="Izin" ${item.status === 'Izin' ? 'selected' : ''}>Izin</option>
+                  <option value="Sakit" ${item.status === 'Sakit' ? 'selected' : ''}>Sakit</option>
+                </select>
+              </td>
+              <td class="px-2.5 py-2 text-center">
+                <button onclick="hapusPresensiSiswaAdmin(${index})" class="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-xs transition">
+                  <i class="fas fa-trash-alt"></i> Hapus
+                </button>
+              </td>
+            </tr>
+          `;
+          tbody.innerHTML += tr;
+        });
+      });
+    }
+
+    // Fungsi Pengubah Status Siswa dari Admin Panel
+    function ubahStatusSiswaAdmin(index, statusBaru) {
+      if (isGoogleScript) {
+        // Mode Online Google Sheets
+        google.script.run.withSuccessHandler(function(response) {
+          alert(response);
+          muatDataPresensi();
+          muatDataKelolaPresensiAdmin();
+          muatStatistikDashboard();
+        }).ubahStatusSiswaGSheets(index, statusBaru);
+      } else {
+        // Mode Simulasi Offline Fallback
+        if (dataPresensiTerbaru[index]) {
+          dataPresensiTerbaru[index].status = statusBaru;
+          // Cari & sinkronkan juga ke list dummyPresensi harian browser
+          let itemNama = dataPresensiTerbaru[index].nama;
+          let targetDummy = dummyPresensi.find(x => x.nama === itemNama);
+          if (targetDummy) targetDummy.status = statusBaru;
+          
+          alert("Sukses: Status " + itemNama + " berhasil diubah menjadi " + statusBaru + " (Mode Simulasi)!");
+          muatDataPresensi();
+          muatDataKelolaPresensiAdmin();
+          muatStatistikDashboard();
+        }
+      }
+    }
+
+    // Fungsi Penghapus Baris Siswa dari Admin Panel
+    function hapusPresensiSiswaAdmin(index) {
+      if (!confirm("Apakah Anda yakin ingin menghapus data presensi siswa ini?")) return;
+
+      if (isGoogleScript) {
+        // Mode Online Google Sheets
+        google.script.run.withSuccessHandler(function(response) {
+          alert(response);
+          muatDataPresensi();
+          muatDataKelolaPresensiAdmin();
+          muatStatistikDashboard();
+        }).hapusPresensiSiswaGSheets(index);
+      } else {
+        // Mode Simulasi Offline Fallback
+        if (dataPresensiTerbaru[index]) {
+          let itemNama = dataPresensiTerbaru[index].nama;
+          dummyPresensi = dummyPresensi.filter(x => x.nama !== itemNama);
+          dataPresensiTerbaru.splice(index, 1);
+          
+          alert("Sukses: Data presensi " + itemNama + " berhasil dihapus!");
+          muatDataPresensi();
+          muatDataKelolaPresensiAdmin();
+          muatStatistikDashboard();
+        }
+      }
+    }
+
+    // ==================== LOGIKA GITHUB PAGES ADAPTER ====================
+    function inisialisasiGithubEnvironment() {
+      if (!isGoogleScript) {
+        // Tampilkan tombol konfigurasi di GitHub secara defensif (null-checking)
+        const btnConfig = document.getElementById("btn-config-github");
+        const btnConfigMobile = document.getElementById("btn-config-github-mobile");
+        const connStatus = document.getElementById("connection-status");
+        const inputUrl = document.getElementById("input-web-app-url");
+        const setupBanner = document.getElementById("github-setup-banner");
+
+        if (btnConfig) btnConfig.classList.remove("hidden");
+        if (btnConfigMobile) btnConfigMobile.classList.remove("hidden");
+        
+        if (connStatus) {
+          connStatus.innerText = "GitHub Pages - API Bridge Mode";
+          connStatus.className = "text-xs text-yellow-400 font-medium";
+        }
+        
+        // Load URL yang disimpan jika ada
+        const savedUrl = localStorage.getItem("mpls_cloud_db_url");
+        if (savedUrl) {
+          if (inputUrl) inputUrl.value = savedUrl;
+          if (setupBanner) setupBanner.classList.add("hidden");
+          if (connStatus) {
+            connStatus.innerText = "GitHub Pages Connected to Cloud Database";
+            connStatus.className = "text-xs text-green-400 font-medium";
+          }
+        } else {
+          if (setupBanner) setupBanner.classList.remove("hidden");
+        }
+      }
+    }
+
+    function toggleGithubConfigModal() {
+      const modal = document.getElementById("github-config-modal");
+      if (modal) modal.classList.toggle("hidden");
+    }
+
+    // UPDATE UI INDIKATOR BADGE KONEKSI SECARA REAL-TIME
+    function updateDatabaseStatusBadge(isReal) {
+      const badge = document.getElementById("db-status-badge");
+      if (!badge) return;
+      if (isReal) {
+        badge.className = "px-2 py-0.5 text-xs font-bold rounded-full bg-green-100 text-green-800 flex items-center";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span> Google Sheets Aktif`;
+      } else {
+        badge.className = "px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 flex items-center";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-500 mr-1.5"></span> Mode Simulasi (Offline)`;
+      }
+    }
+
+    // BRIDGE CALLER UTAMA: Menjamin pemanggilan berjalan lancar di Apps Script ATAU GitHub via API Fetch
+    function hubungiBackend(actionName, argumentsArray, successCallback, errorCallback) {
+      if (isGoogleScript) {
+        updateDatabaseStatusBadge(true);
+        let runner = google.script.run;
+        if (successCallback) {
+          runner = runner.withSuccessHandler(successCallback);
+        }
+        if (errorCallback) {
+          runner = runner.withFailureHandler(errorCallback);
+        } else {
+          runner = runner.withFailureHandler(function(err) {
+            console.warn("GAS Connection failed, falling back to simulation:", err);
+            jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+          });
+        }
+        if (runner[actionName]) {
+          runner[actionName].apply(runner, argumentsArray); // DI-EXECUTE DENGAN CONTEXT 'runner' YANG TEPAT!
+        } else {
+          if (successCallback) successCallback("Fungsi " + actionName + " tidak terdefinisi di Kode.gs. Menjalankan fallback lokal.");
+        }
+      } else {
+        const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+        if (!cloudUrl) {
+          updateDatabaseStatusBadge(false);
+          jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+          return;
+        }
+
+        const payload = {
+          action: actionName,
+          args: argumentsArray
+        };
+
+        fetch(cloudUrl, {
+          method: "POST",
+          mode: "cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("HTTP error " + res.status);
+          }
+          return res.json();
+        })
+        .then(resObj => {
+          if (resObj && resObj.success !== false) {
+            updateDatabaseStatusBadge(true);
+            if (successCallback) successCallback(resObj.data !== undefined ? resObj.data : resObj);
+          } else {
+            updateDatabaseStatusBadge(false);
+            if (errorCallback) errorCallback(resObj ? resObj.error : "Gagal membaca API");
+          }
+        })
+        .catch(err => {
+          updateDatabaseStatusBadge(false);
+          console.warn("API Connection failed (CORS/Network/Sandbox). Falling back to simulation mode quietly.");
+          jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+        });
+      }
+    }
+
+    // Simulasi data lokal jika database cloud belum disetup di GitHub
+    function jalankanSimulasiLokal(actionName, args, successCallback) {
+      if (!successCallback) return;
+      
+      switch (actionName) {
+        case "dapatkanStatistik":
+          successCallback({
+            totalSiswa: dummyPresensi.length,
+            hadir: dummyPresensi.filter(x => x.status === "Hadir").length,
+            izin: dummyPresensi.filter(x => x.status === "Izin").length,
+            sakit: dummyPresensi.filter(x => x.status === "Sakit").length
+          });
+          break;
+        case "ambilDaftarPresensi":
+          successCallback(dummyPresensi);
+          break;
+        case "simpanPresensiSiswa":
+          const [nama, nisn, sd, gugus, status, catatan] = args;
+          dummyPresensi.unshift({
+            waktu: "Baru Saja", nama, nisn, asalSd: sd, gugus, status, catatan
+          });
+          successCallback("Sukses: Data presensi disimpan (Mode Simulasi)!");
+          break;
+        case "ambilDaftarPertanyaan":
+          successCallback(dummyTanya);
+          break;
+        case "kirimPertanyaanBaru":
+          const [tanyaNama, tanyaGugus, tanyaTeks] = args;
+          dummyTanya.unshift({
+            nama: tanyaNama, gugus: tanyaGugus, pertanyaan: tanyaTeks, status: "Belum Dijawab", jawaban: ""
+          });
+          successCallback("Sukses: Pertanyaan dikirim (Mode Simulasi)!");
+          break;
+        case "ubahPasswordAdmin_GS":
+          const [newP] = args;
+          localStorage.setItem("mpls_admin_password", newP);
+          successCallback("Kata sandi berhasil diperbarui (Simulasi Lokal)!");
+          break;
+        case "verifikasiPasswordAdmin_GS":
+          const [inputP] = args;
+          const savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
+          if (inputP === savedP) {
+            successCallback({ terverifikasi: true });
+          } else {
+            successCallback({ terverifikasi: false, pesan: "Kata sandi salah!" });
+          }
+          break;
+      }
+    }
+
+    // ==================== LOGIKA SCAN BARCODE / QR CODE ====================
+    function setPresensiMode(mode) {
+      const btnManual = document.getElementById('btn-mode-manual');
+      const btnScan = document.getElementById('btn-mode-scan');
+      const containerScanner = document.getElementById('container-scanner');
+
+      if (mode === 'manual') {
+        btnManual.className = "flex-1 py-2 text-center rounded-lg bg-white text-blue-900 shadow";
+        btnScan.className = "flex-1 py-2 text-center rounded-lg text-gray-600 hover:text-blue-900";
+        containerScanner.classList.add('hidden');
+        matikanPemindaiKamera();
+      } else {
+        btnScan.className = "flex-1 py-2 text-center rounded-lg bg-white text-blue-900 shadow";
+        btnManual.className = "flex-1 py-2 text-center rounded-lg text-gray-600 hover:text-blue-900";
+        containerScanner.classList.remove('hidden');
+        nyalakanPemindaiKamera();
+      }
+    }
+
+    function nyalakanPemindaiKamera() {
+      if (kameraSedangAktif || sedangTransisiKamera) return;
+
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length > 0) {
+          daftarKameraTersedia = devices;
+          let backCameraIndex = devices.findIndex(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('environment') || 
+            device.label.toLowerCase().includes('rear')
+          );
+          
+          indeksKameraAktif = backCameraIndex !== -1 ? backCameraIndex : 0;
+          memulaiStreamKamera(daftarKameraTersedia[indeksKameraAktif].id);
+        } else {
+          alert("Sistem tidak mendeteksi perangkat kamera aktif!");
+        }
+      }).catch(err => {
+        alert("Gagal mengakses daftar kamera: " + err);
+      });
+    }
+
+    // Memulai stream viewfinder dari kamera terpilih
+    function memulaiStreamKamera(cameraId) {
+      if (sedangTransisiKamera) return;
+      sedangTransisiKamera = true;
+
+      if (pemindaiKamera && kameraSedangAktif) {
+        pemindaiKamera.stop().then(() => {
+          kameraSedangAktif = false;
+          aktifkanInstansiPemindai(cameraId);
+        }).catch(err => {
+          kameraSedangAktif = false;
+          aktifkanInstansiPemindai(cameraId);
+        });
+      } else {
+        aktifkanInstansiPemindai(cameraId);
+      }
+    }
+
+    function aktifkanInstansiPemindai(cameraId) {
+      if (!pemindaiKamera) {
+        pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
+      }
+      
+      pemindaiKamera.start(
+        cameraId, 
+        {
+          fps: 15,
+          qrbox: (width, height) => {
+            const sideLength = Math.min(width, height) * 0.7;
+            return { width: sideLength, height: sideLength };
+          }
+        },
+        onScanSuccess,
+        onScanFailure
+      ).then(() => {
+        kameraSedangAktif = true;
+        sedangTransisiKamera = false;
+        const btnToggle = document.getElementById('btn-toggle-scanner');
+        if (btnToggle) {
+          btnToggle.className = "flex-1 bg-red-500 hover:bg-red-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
+          btnToggle.innerHTML = `<i class="fas fa-stop mr-1.5"></i> Matikan Kamera`;
+        }
+      }).catch(err => {
+        sedangTransisiKamera = false;
+        console.error("Gagal menjalankan kamera scanner: ", err);
+      });
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      mainkanNadaBip();
+      console.log("Barcode/QR Terdeteksi: ", decodedText);
+      matikanPemindaiKamera();
+
+      if (decodedText.startsWith("MPLS:")) {
+        const rawData = decodedText.replace("MPLS:", "");
+        const parts = rawData.split("|");
+        if (parts.length >= 1) {
+          document.getElementById("absen-nama").value = parts[0] || "";
+          document.getElementById("absen-sd").value = parts[1] || "";
+          tampilkanNotifikasiEkstraScan("Data QR Siswa Terdeteksi! Mengirim data presensi...");
+          setTimeout(kirimPresensi, 1000);
+          return;
+        }
+      }
+
+      const cleanText = decodedText.trim();
+      document.getElementById("absen-nama").value = cleanText;
+      tampilkanNotifikasiEkstraScan("Teks terdeteksi! Nama berhasil diisi.");
+    }
+
+    function onScanFailure(error) { }
+
+    function pilihKameraLain() {
+      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) {
+        if (daftarKameraTersedia.length <= 1) alert("Perangkat Anda hanya memiliki satu kamera aktif.");
+        return;
+      }
+      indeksKameraAktif = (indeksKameraAktif + 1) % daftarKameraTersedia.length;
+      memulaiStreamKamera(daftarKameraTersedia[indeksKameraAktif].id);
+    }
+
+    function kontrolScanner() {
+      if (sedangTransisiKamera) return;
+      if (kameraSedangAktif) {
+        matikanPemindaiKamera();
+      } else {
+        nyalakanPemindaiKamera();
+      }
+    }
+
+    function matikanPemindaiKamera() {
+      if (sedangTransisiKamera) return;
+      
+      if (pemindaiKamera && kameraSedangAktif) {
+        sedangTransisiKamera = true;
+        pemindaiKamera.stop().then(() => {
+          kameraSedangAktif = false;
+          sedangTransisiKamera = false;
+          ubahUIPemindaiMati();
+        }).catch(err => {
+          kameraSedangAktif = false;
+          sedangTransisiKamera = false;
+          ubahUIPemindaiMati();
+        });
+      }
+    }
+
+    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal
+    function muatDataPresensi() {
+      const tbody = document.getElementById("tabel-presensi");
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500"><i class="fas fa-spinner animate-spin mr-2"></i>Menghubungkan basis data...</td></tr>`;
+      }
+
+      hubungiBackend("ambilDaftarPresensi", [], function(data) {
+        renderTabelPresensi(data);
+      });
+    }
+
+    function renderTabelPresensi(data) {
+      dataPresensiTerbaru = data; // Simpan salinan data aktif untuk unduhan PDF / Excel harian
+      const tbody = document.getElementById("tabel-presensi");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-400 italic">Belum ada aktivitas presensi saat ini.</td></tr>`;
+        return;
+      }
+
+      data.forEach(item => {
+        let badgeColor = "bg-green-100 text-green-800";
+        if (item.status === "Izin") badgeColor = "bg-yellow-100 text-yellow-800";
+        if (item.status === "Sakit") badgeColor = "bg-red-100 text-red-800";
+
+        let tr = `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="px-3 py-3 text-gray-500 font-medium whitespace-nowrap">${item.waktu}</td>
+            <td class="px-3 py-3 font-semibold text-gray-800">${item.nama} <span class="block text-gray-400 font-normal text-xs">NISN: ${item.nisn}</span></td>
+            <td class="px-3 py-3 text-gray-600">${item.asalSd}</td>
+            <td class="px-3 py-3 text-gray-600">${item.gugus}</td>
+            <td class="px-3 py-3 text-center">
+              <span class="px-2 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${badgeColor}">${item.status}</span>
+            </td>
+          </tr>
+        `;
+        tbody.innerHTML += tr;
+      });
+    }
+
+    function ubahUIPemindaiMati() {
+      const btnToggle = document.getElementById('btn-toggle-scanner');
+      if (btnToggle) {
+        btnToggle.className = "flex-1 bg-green-500 hover:bg-green-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
+        btnToggle.innerHTML = `<i class="fas fa-play mr-1.5"></i> Aktifkan Kamera`;
+      }
+    }
+
+    function mainkanNadaBip() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        
+        oscillator.start();
+        setTimeout(() => {
+          oscillator.stop();
+          audioCtx.close();
+        }, 120);
+      } catch (err) { }
+    }
+
+    function tampilkanNotifikasiEkstraScan(pesan) {
+      const notif = document.getElementById("notif-absen");
+      tampilkanNotifikasi(notif, "Info: " + pesan, true);
+    }
+
+    // ==================== REKAP UNDUHAN (EXCEL & PDF) ====================
+    function unduhExcel() {
+      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
+        alert("Tidak ada data presensi harian untuk diunduh!");
+        return;
+      }
+
+      const formatDataExcel = dataPresensiTerbaru.map((item, index) => ({
+        "No": index + 1,
+        "Waktu Input": item.waktu,
+        "Nama Siswa": item.nama,
+        "NISN": item.nisn,
+        "Asal Sekolah (SD)": item.asalSd,
+        "Gugus / Kelompok": item.gugus,
+        "Status Kehadiran": item.status,
+        "Catatan": item.catatan || "-"
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formatDataExcel);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi");
+
+      const wscols = [
+        {wch: 5}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 25}, {wch: 20}, {wch: 18}, {wch: 20}
+      ];
+      worksheet['!cols'] = wscols;
+      XLSX.writeFile(workbook, "Data_Presensi_MPLS_SMPN_11_Palu.xlsx");
+    }
+
+    function unduhPDF() {
+      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
+        alert("Tidak ada data presensi harian untuk diunduh!");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 58, 138); 
+      doc.text("PANITIA MASA PENGENALAN LINGKUNGAN SEKOLAH (MPLS)", 14, 15);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(17, 24, 39);
+      doc.text("SMP NEGERI 11 PALU", 14, 22);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 27);
+
+      doc.setDrawColor(30, 58, 138);
+      doc.setLineWidth(0.8);
+      doc.line(14, 31, 196, 31);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(17, 24, 39);
+      doc.text("REKAPITULASI PRESENSI HARIAN PESERTA MPLS", 14, 40);
+
+      const headers = [["No", "Waktu Presensi", "Nama Siswa", "Asal Sekolah SD", "Gugus", "Status"]];
+      const rows = dataPresensiTerbaru.map((item, index) => [
+        index + 1, item.waktu, item.nama, item.asalSd, item.gugus, item.status
+      ]);
+
+      doc.autoTable({
+        head: headers,
+        body: rows,
+        startY: 45,
+        theme: "grid",
+        headStyles: { 
+          fillColor: [30, 58, 138], 
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: "bold",
+          halign: "center"
+        },
+        bodyStyles: { fontSize: 8.5, textColor: [55, 65, 81] },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 32, halign: "center" },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 42 },
+          4: { cellWidth: 30, halign: "center" },
+          5: { cellWidth: 18, halign: "center" }
+        }
+      });
+
+      doc.save("Laporan_Presensi_MPLS_SMPN_11_Palu.pdf");
+    }
+
+    function kirimPresensi() {
+      const nama = document.getElementById("absen-nama").value.trim();
+      let sd = document.getElementById("absen-sd").value.trim();
+      const btn = document.getElementById("btn-submit-presensi");
+      const notif = document.getElementById("notif-absen");
+
+      const nisn = "-";
+      const gugus = "Siswa Baru";
+      const status = "Hadir";
+      const catatan = "-";
+
+      if (!nama) {
+        tampilkanNotifikasi(notif, "Peringatan: Mohon isi Nama Lengkap Anda!", false);
+        return;
+      }
+      if (!sd) {
+        sd = "-";
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner animate-spin mr-2"></i>Menyimpan...`;
+
+      hubungiBackend("simpanPresensiSiswa", [nama, nisn, sd, gugus, status, catatan], function(response) {
+        btn.disabled = false;
+        if (btn) btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Submit Presensi`;
+        
+        if (response.indexOf("Sukses") > -1) {
+          tampilkanNotifikasi(notif, response, true);
+          document.getElementById("absen-nama").value = "";
+          document.getElementById("absen-sd").value = "";
+          
+          matikanPemindaiKamera();
+          setPresensiMode('manual');
+
+          muatDataPresensi();
+          muatStatistikDashboard();
+        } else {
+          tampilkanNotifikasi(notif, response, false);
+        }
+      }, function(err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Submit Presensi`;
+        }
+        tampilkanNotifikasi(notif, "Error: Gagal terhubung ke server cloud.", false);
+      });
+    }
+
+    // ==================== TANYA JAWAB PANITIA ====================
+    function muatDataPertanyaan() {
+      const forum = document.getElementById("forum-list");
+      forum.innerHTML = `<div class="text-center py-6 text-gray-500"><i class="fas fa-spinner animate-spin mr-2"></i>Mengambil diskusi terbaru...</div>`;
+
+      hubungiBackend("ambilDaftarPertanyaan", [], function(data) {
+        renderForum(data);
+      });
+    }
+
+    function renderForum(data) {
+      const forum = document.getElementById("forum-list");
+      if (!forum) return;
+      forum.innerHTML = "";
+      
+      if (!data || data.length === 0) {
+        forum.innerHTML = `<div class="text-center py-6 text-gray-400 italic">Belum ada pertanyaan terkirim dari siswa.</div>`;
+        return;
+      }
+
+      data.forEach(item => {
+        let isTerjawab = item.status === "Sudah Dijawab";
+        let statusBadge = isTerjawab 
+          ? `<span class="bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center"><i class="fas fa-check-circle mr-1"></i> Dijawab</span>`
+          : `<span class="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center"><i class="far fa-clock mr-1"></i> Menunggu</span>`;
+
+        let replyCard = isTerjawab
+          ? `<div class="mt-2.5 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-xl">
+              <p class="text-xs font-bold text-yellow-800 mb-0.5"><i class="fas fa-bullhorn mr-1"></i> Jawaban Panitia:</p>
+              <p class="text-xs text-gray-700 leading-relaxed">${item.jawaban}</p>
+             </div>`
+          : `<div class="mt-2.5 bg-gray-50 border-l-4 border-gray-300 p-2.5 rounded-r-xl italic text-xs text-gray-400">
+              <i class="fas fa-info-circle mr-1"></i> Pertanyaan telah masuk ke panitia dan akan segera dijawab.
+             </div>`;
+
+        let card = `
+          <div class="bg-white p-4 rounded-xl border border-gray-150 shadow-sm hover:shadow-md transition text-left">
+            <div class="flex items-center justify-between gap-2 border-b pb-2 mb-2">
+              <div>
+                <h4 class="font-bold text-gray-800 text-sm">${item.nama}</h4>
+                <p class="text-gray-400 text-xs">${item.gugus}</p>
+              </div>
+              ${statusBadge}
+            </div>
+            <p class="text-xs text-gray-600 leading-relaxed">${item.pertanyaan}</p>
+            ${replyCard}
+          </div>
+        `;
+        forum.innerHTML += card;
+      });
+    }
+
+    // ==================== DASHBOARD STATISTIK ====================
+    function muatStatistikDashboard() {
+      hubungiBackend("dapatkanStatistik", [], function(stats) {
+        document.getElementById('stat-total').innerText = stats.totalSiswa || '0';
+        document.getElementById('stat-hadir').innerText = stats.hadir || '0';
+        document.getElementById('stat-izin').innerText = stats.izin || '0';
+        document.getElementById('stat-sakit').innerText = stats.sakit || '0';
+      });
+    }
+
+    function kirimTanya() {
+      const nama = document.getElementById("tanya-nama").value.trim();
+      const gugus = document.getElementById("tanya-gugus").value.trim();
+      const teks = document.getElementById("tanya-teks").value.trim();
+      const btn = document.getElementById("btn-submit-tanya");
+      const notif = document.getElementById("notif-tanya");
+
+      if (!nama || !teks) {
+        tampilkanNotifikasi(notif, "Peringatan: Nama dan pesan pertanyaan tidak boleh kosong!", false);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner animate-spin mr-2"></i>Kirim...`;
+
+      hubungiBackend("kirimPertanyaanBaru", [nama, gugus, teks], function(response) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Kirim Pesan`;
+        
+        if (response.indexOf("Sukses") > -1) {
+          tampilkanNotifikasi(notif, response, true);
+          document.getElementById("tanya-nama").value = "";
+          document.getElementById("tanya-gugus").value = "";
+          document.getElementById("tanya-teks").value = "";
+          muatDataPertanyaan();
+        } else {
+          tampilkanNotifikasi(notif, response, false);
+        }
+      }, function(err) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Kirim Pesan`;
+        tampilkanNotifikasi(notif, "Error: Gagal mengirim pertanyaan ke server cloud.", false);
+      });
+    }
+
+    // Helper Penampil Notifikasi
+    function tampilkanNotifikasi(element, pesan, isSukses) {
+      if (!element) return;
+      element.classList.remove("hidden", "bg-green-100", "text-green-800", "bg-red-100", "text-red-800", "bg-yellow-100", "text-yellow-800");
+      if (isSukses) {
+        element.classList.add("bg-green-100", "text-green-800");
+      } else {
+        if (pesan.includes("Peringatan:")) {
+          element.classList.add("bg-yellow-100", "text-yellow-800");
+        } else {
+          element.classList.add("bg-red-100", "text-red-800");
+        }
+      }
+      element.innerText = pesan;
+      element.classList.remove("hidden");
+      
+      setTimeout(() => {
+        element.classList.add("hidden");
+      }, 6000);
+    }
+  </script>
+</body>
+</html>
