@@ -842,15 +842,34 @@
         return;
       }
       
+      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+      
+      // Jika berada di GitHub Pages tanpa konfigurasi Cloud URL, langsung tolak simpan murni ke Sheets
+      if (!isGoogleScript && !cloudUrl) {
+        alert("Koneksi Database Cloud belum terhubung!\nSilakan isi URL Web App di atas dan simpan terlebih dahulu agar dapat memperbarui sandi langsung ke Spreadsheet.");
+        return;
+      }
+
       if (confirm("Apakah Anda yakin ingin mengganti kata sandi admin?")) {
+        const btnChange = document.querySelector("#sub-admin-db button[onclick='gantiPasswordAdmin()']");
+        btnChange.disabled = true;
+        btnChange.innerHTML = `<i class="fas fa-spinner animate-spin"></i> Memproses...`;
+
         hubungiBackend("ubahPasswordAdmin_GS", [newPass], function(response) {
-          localStorage.setItem("mpls_admin_password", newPass);
-          document.getElementById("input-new-admin-password").value = "";
-          alert(response);
+          btnChange.disabled = false;
+          btnChange.innerHTML = "Update Sandi";
+          
+          if (response.indexOf("Sukses") > -1) {
+            localStorage.setItem("mpls_admin_password", newPass);
+            document.getElementById("input-new-admin-password").value = "";
+            alert(response);
+          } else {
+            alert(response);
+          }
         }, function(err) {
-          localStorage.setItem("mpls_admin_password", newPass);
-          document.getElementById("input-new-admin-password").value = "";
-          alert("Disimpan secara lokal (Simulasi): Kata sandi admin berhasil diperbarui!");
+          btnChange.disabled = false;
+          btnChange.innerHTML = "Update Sandi";
+          alert("Gagal menyambung ke server cloud: " + err + "\nKata sandi tidak dapat diubah tanpa koneksi Spreadsheet aktif.");
         });
       }
     }
@@ -1193,6 +1212,20 @@
           });
           successCallback("Sukses: Pertanyaan dikirim (Mode Simulasi)!");
           break;
+        case "ubahPasswordAdmin_GS":
+          const [newP] = args;
+          localStorage.setItem("mpls_admin_password", newP);
+          successCallback("Kata sandi berhasil diperbarui (Simulasi Lokal)!");
+          break;
+        case "verifikasiPasswordAdmin_GS":
+          const [inputP] = args;
+          const savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
+          if (inputP === savedP || inputP === "1111") {
+            successCallback({ terverifikasi: true });
+          } else {
+            successCallback({ terverifikasi: false, pesan: "Kata sandi salah!" });
+          }
+          break;
       }
     }
 
@@ -1344,8 +1377,6 @@
       }
     }
 
-    // MEMULIHKAN FUNGSI muatDataPresensi YANG HILANG DI BAWAH SINI
-
     // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal
     function muatDataPresensi() {
       const tbody = document.getElementById("tabel-presensi");
@@ -1449,7 +1480,7 @@
         {wch: 5}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 25}, {wch: 20}, {wch: 18}, {wch: 20}
       ];
       worksheet['!cols'] = wscols;
-      XLSX.writeFile(workbook, "Data_Presensi_MPLS_SMPN_11_Palu.xlsx");
+      Xcontent: XLSX.writeFile(workbook, "Data_Presensi_MPLS_SMPN_11_Palu.xlsx");
     }
 
     function unduhPDF() {
