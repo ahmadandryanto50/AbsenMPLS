@@ -1306,7 +1306,7 @@
     }
 
     function nyalakanPemindaiKamera() {
-      if (kameraSedangAktif || sedangTransisiKamera) return; // MEMPERBAIKI TYPO sedandTransiniKamera -> sedangTransisiKamera
+      if (kameraSedangAktif || sedangTransisiKamera) return; // MEMPERBAIKI TYPO sedandTransiniKamera -> sedangTransisiKamera secara permanen
 
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length > 0) {
