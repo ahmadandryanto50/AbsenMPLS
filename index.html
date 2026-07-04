@@ -726,10 +726,13 @@
       if (sedangTransisiKamera) return;
       sedangTransisiKamera = true;
 
-      if (pemindaiKamera) {
+      // Hanya panggil .stop() jika pemindai memang sedang benar-benar berjalan aktif
+      if (pemindaiKamera && kameraSedangAktif) {
         pemindaiKamera.stop().then(() => {
+          kameraSedangAktif = false;
           aktifkanInstansiPemindai(cameraId);
         }).catch(err => {
+          kameraSedangAktif = false;
           aktifkanInstansiPemindai(cameraId);
         });
       } else {
@@ -738,7 +741,11 @@
     }
 
     function aktifkanInstansiPemindai(cameraId) {
-      pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
+      // PERBAIKAN UTAMA: Cegah pembuatan objek 'new Html5Qrcode' berulang kali pada elemen DOM yang sama.
+      // Jika sudah pernah dibuat, gunakan instansi pemindai yang lama untuk menghindari galat bentrok instansi.
+      if (!pemindaiKamera) {
+        pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
+      }
       
       pemindaiKamera.start(
         cameraId, 
@@ -768,6 +775,9 @@
       mainkanNadaBip();
       console.log("Barcode/QR Terdeteksi: ", decodedText);
       
+      // Langsung matikan kamera pemindai agar tidak membaca ganda dan mengunci kamera secara asinkron
+      matikanPemindaiKamera();
+
       if (decodedText.startsWith("MPLS:")) {
         const rawData = decodedText.replace("MPLS:", "");
         const parts = rawData.split("|");
@@ -799,6 +809,7 @@
       memulaiStreamKamera(daftarKameraTersedia[indeksKameraAktif].id);
     }
 
+    // Fungsi pemutus/penghidup kamera lewat klik tombol
     function kontrolScanner() {
       if (sedangTransisiKamera) return;
       if (kameraSedangAktif) {
