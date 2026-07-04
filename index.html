@@ -829,7 +829,7 @@
       }
 
       // Jika terkoneksi (di Apps Script atau ada Cloud URL di Github), wajib divalidasi ke database Spreadsheet CONFIG
-      // Sandi offline "admin11palu" TIDAK AKAN BERFUNGSI lagi jika koneksi database aktif
+      // Sandi offline "admin11palu" / bypass lokal offline TIDAK AKAN BERFUNGSI lagi jika koneksi database aktif
       hubungiBackend("verifikasiPasswordAdmin_GS", [pin], function(result) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
@@ -842,7 +842,7 @@
       }, function(err) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
-        tampilkanPesanSistem("Kesalahan Koneksi", "Gagal memverifikasi: " + err, "error");
+        tampilkanPesanSistem("Kesalahan Jaringan / Koneksi", "Gagal memverifikasi: Tidak dapat terhubung ke database Spreadsheet! Pengaman luring (offline bypass) dinonaktifkan saat database cloud aktif.", "error");
       });
     }
 
@@ -1306,7 +1306,7 @@
     }
 
     function nyalakanPemindaiKamera() {
-      if (kameraSedangAktif || sedangTransisiKamera) return;
+      if (kameraSedangAktif || sedangTransiniKamera) return;
 
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length > 0) {
