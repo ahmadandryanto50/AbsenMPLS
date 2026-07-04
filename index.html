@@ -1102,6 +1102,40 @@
       if (modal) modal.classList.toggle("hidden");
     }
 
+    // IMPLEMENTASI FUNGSI PENGHUBUNG DATABASE CLOUD YANG HILANG (PENYEBAB REFERENCEERROR)
+    function simpanGithubConfig() {
+      const url = document.getElementById("input-web-app-url").value.trim();
+      const notif = document.getElementById("notif-config");
+      
+      if (!url || url.indexOf("https://script.google.com") === -1) {
+        tampilkanNotifikasi(notif, "Peringatan: URL Apps Script Web App yang Anda masukkan tidak valid!", false);
+        return;
+      }
+      
+      localStorage.setItem("mpls_cloud_db_url", url);
+      tampilkanNotifikasi(notif, "Sukses: Koneksi Cloud Database berhasil disimpan!", true);
+      
+      setTimeout(() => {
+        toggleGithubConfigModal();
+        inisialisasiGithubEnvironment();
+        muatStatistikDashboard();
+        muatDataPresensi();
+      }, 1000);
+    }
+
+    function hapusGithubConfig() {
+      localStorage.removeItem("mpls_cloud_db_url");
+      const inputUrl = document.getElementById("input-web-app-url");
+      if (inputUrl) inputUrl.value = "";
+      const notif = document.getElementById("notif-config");
+      tampilkanNotifikasi(notif, "Sukses: Konfigurasi dihapus. Kembali ke mode simulasi.", true);
+      
+      setTimeout(() => {
+        toggleGithubConfigModal();
+        location.reload();
+      }, 1000);
+    }
+
     // UPDATE UI INDIKATOR BADGE KONEKSI SECARA REAL-TIME
     function updateDatabaseStatusBadge(isReal) {
       const badge = document.getElementById("db-status-badge");
