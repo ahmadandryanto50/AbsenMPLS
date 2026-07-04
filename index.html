@@ -134,7 +134,7 @@
             <p class="text-xs text-gray-400">Masukkan kata sandi Admin untuk membuka fitur edit konten dan data.</p>
           </div>
           <div class="max-w-xs mx-auto">
-            <input type="password" id="input-admin-pin" placeholder="Masukkan Sandi Admin" class="w-full text-center p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none tracking-widest text-lg font-bold">
+            <input type="password" id="input-admin-pin" onkeyup="if(event.key === 'Enter') verifikasiPinAdmin()" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Masukkan Sandi Admin" class="w-full text-center p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none tracking-widest text-lg font-bold">
             <button onclick="verifikasiPinAdmin()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md">
               <i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel
             </button>
@@ -186,7 +186,7 @@
               <label class="block text-xs font-bold text-red-700"><i class="fas fa-key mr-1"></i> Ganti Kata Sandi Panel Admin</label>
               <p class="text-xs text-gray-500">Sandi baru ini akan langsung disinkronkan ke file Spreadsheet di Google Drive Anda.</p>
               <div class="flex space-x-2">
-                <input type="password" id="input-new-admin-password" placeholder="Masukkan kata sandi baru" class="flex-grow text-xs p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <input type="password" id="input-new-admin-password" autocapitalize="none" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Masukkan kata sandi baru" class="flex-grow text-xs p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
                 <button onclick="gantiPasswordAdmin()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition whitespace-nowrap shadow-md">
                   Update Sandi
                 </button>
@@ -709,13 +709,17 @@
     
     // Ambil data Beranda dan Jadwal dari LocalStorage jika ada modifikasi tersimpan harian
     function muatCadanganKontenLokal() {
-      const lokalConfig = localStorage.getItem("mpls_app_config");
-      const lokalJadwal = localStorage.getItem("mpls_app_jadwal");
-      if (lokalConfig) {
-        try { appConfig = JSON.parse(lokalConfig); } catch(e) {}
-      }
-      if (lokalJadwal) {
-        try { appJadwal = JSON.parse(lokalJadwal); } catch(e) {}
+      try {
+        const lokalConfig = localStorage.getItem("mpls_app_config");
+        const lokalJadwal = localStorage.getItem("mpls_app_jadwal");
+        if (lokalConfig) {
+          try { appConfig = JSON.parse(lokalConfig); } catch(e) {}
+        }
+        if (lokalJadwal) {
+          try { appJadwal = JSON.parse(lokalJadwal); } catch(e) {}
+        }
+      } catch (e) {
+        console.warn("LocalStorage tidak didukung:", e);
       }
     }
 
@@ -813,17 +817,25 @@
       btn.disabled = true;
       btn.innerHTML = `<i class="fas fa-spinner animate-spin mr-1.5"></i> Memverifikasi...`;
 
-      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+      let cloudUrl = "";
+      try {
+        cloudUrl = localStorage.getItem("mpls_cloud_db_url") || "";
+      } catch (e) {
+        console.warn(e);
+      }
 
       // BENTENG KEAMANAN SINKRONISASI OFFLINE: Jika tanpa database, langsung validasi bypass kata sandi luring Anda
       if (!isGoogleScript && !cloudUrl) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
-        const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
+        let lokalPass = "admin11palu";
+        try {
+          lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
+        } catch (e) {}
         if (pin === lokalPass || pin === "admin11palu") {
           masukSebagaiAdmin();
         } else {
-          tampilkanPesanSistem("Kesalahan Login", "Kata sandi salah! (Sandi offline default: admin11palu)", "error");
+          tampilkanPesanSistem("Kesalahan Login", "Kata sandi salah! (Sandi luring bawaan: admin11palu)", "error");
         }
         return;
       }
@@ -842,7 +854,7 @@
       }, function(err) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
-        tampilkanPesanSistem("Kesalahan Koneksi", "Gagal memverifikasi: " + err, "error");
+        tampilkanPesanSistem("Kesalahan Koneksi", "Gagal memverifikasi: " + err + "\n\nTips: Periksa koneksi internet Anda atau pastikan URL Web App di tab 'Database & Sandi' sudah diset ke 'Anyone' (Siapa Saja).", "error");
       });
     }
 
@@ -854,7 +866,10 @@
         return;
       }
       
-      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+      let cloudUrl = "";
+      try {
+        cloudUrl = localStorage.getItem("mpls_cloud_db_url") || "";
+      } catch (e) {}
       
       // Jika berada di GitHub Pages tanpa konfigurasi Cloud URL, langsung tolak simpan murni ke Sheets
       if (!isGoogleScript && !cloudUrl) {
@@ -872,7 +887,9 @@
           btnChange.innerHTML = "Update Sandi";
           
           if (response.indexOf("Sukses") > -1) {
-            localStorage.setItem("mpls_admin_password", newPass);
+            try {
+              localStorage.setItem("mpls_admin_password", newPass);
+            } catch (e) {}
             document.getElementById("input-new-admin-password").value = "";
             tampilkanPesanSistem("Sukses", response, "success");
           } else {
@@ -949,7 +966,9 @@
       appConfig.misi_2 = document.getElementById("edit-misi-2").value.trim();
       appConfig.misi_3 = document.getElementById("edit-misi-3").value.trim();
       
-      localStorage.setItem("mpls_app_config", JSON.stringify(appConfig));
+      try {
+        localStorage.setItem("mpls_app_config", JSON.stringify(appConfig));
+      } catch (e) {}
       renderDynamicBeranda();
       
       // Simpan juga ke Spreadsheet jika terkoneksi
@@ -974,7 +993,9 @@
       appJadwal[2].judul = document.getElementById("edit-j3-judul").value.trim();
       appJadwal[2].desc = document.getElementById("edit-j3-desc").value.trim();
 
-      localStorage.setItem("mpls_app_jadwal", JSON.stringify(appJadwal));
+      try {
+        localStorage.setItem("mpls_app_jadwal", JSON.stringify(appJadwal));
+      } catch (e) {}
       renderDynamicJadwal();
       
       // Simpan juga ke Spreadsheet jika terkoneksi
@@ -1094,7 +1115,11 @@
         }
         
         // Load URL yang disimpan jika ada
-        const savedUrl = localStorage.getItem("mpls_cloud_db_url");
+        let savedUrl = "";
+        try {
+          savedUrl = localStorage.getItem("mpls_cloud_db_url") || "";
+        } catch (e) {}
+        
         if (savedUrl) {
           if (inputUrl) inputUrl.value = savedUrl;
           if (setupBanner) setupBanner.classList.add("hidden");
@@ -1115,7 +1140,20 @@
 
     // IMPLEMENTASI FUNGSI PENGHUBUNG DATABASE CLOUD YANG HILANG (PENYEBAB REFERENCEERROR)
     function simpanGithubConfig() {
-      const url = document.getElementById("input-web-app-url").value.trim();
+      const urlInput = document.getElementById("input-web-app-url");
+      if (!urlInput) return;
+      
+      let url = urlInput.value.trim();
+      
+      // Bersihkan spasi kosong dan karakter tak terlihat yang sering terbawa saat copas di HP
+      url = url.replace(/[\s\u200B-\u200D\uFEFF]/g, '');
+      
+      // Auto-correct jika user tidak sengaja copas link editor /edit menjadi /exec
+      if (url.includes("/edit")) {
+        url = url.replace("/edit", "/exec");
+        urlInput.value = url; // Update di tampilan input agar user tahu telah dikoreksi
+      }
+      
       const notif = document.getElementById("notif-config");
       
       if (!url || url.indexOf("https://script.google.com") === -1) {
@@ -1123,8 +1161,12 @@
         return;
       }
       
-      localStorage.setItem("mpls_cloud_db_url", url);
-      tampilkanNotifikasi(notif, "Sukses: Koneksi Cloud Database berhasil disimpan!", true);
+      try {
+        localStorage.setItem("mpls_cloud_db_url", url);
+        tampilkanNotifikasi(notif, "Sukses: Koneksi Cloud Database berhasil disimpan!", true);
+      } catch (e) {
+        tampilkanNotifikasi(notif, "Peringatan: Gagal menyimpan di peramban ini (LocalStorage terblokir)!", false);
+      }
       
       setTimeout(() => {
         toggleGithubConfigModal();
@@ -1136,7 +1178,9 @@
 
     // Memutus koneksi cloud database
     function hapusGithubConfig() {
-      localStorage.removeItem("mpls_cloud_db_url");
+      try {
+        localStorage.removeItem("mpls_cloud_db_url");
+      } catch (e) {}
       const inputUrl = document.getElementById("input-web-app-url");
       if (inputUrl) inputUrl.value = "";
       const notif = document.getElementById("notif-config");
@@ -1187,7 +1231,11 @@
           if (successCallback) successCallback("Fungsi " + actionName + " tidak terdefinisi di Kode.gs. Menjalankan fallback lokal.");
         }
       } else {
-        const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+        let cloudUrl = "";
+        try {
+          cloudUrl = localStorage.getItem("mpls_cloud_db_url") || "";
+        } catch (e) {}
+
         if (!cloudUrl) {
           updateDatabaseStatusBadge(false);
           jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
@@ -1199,9 +1247,12 @@
           args: argumentsArray
         };
 
+        // Menggunakan opsi omit credentials dan follow redirect demi keandalan penuh di webview seluler (HP)
         fetch(cloudUrl, {
           method: "POST",
           mode: "cors",
+          credentials: "omit",
+          redirect: "follow",
           headers: {
             "Content-Type": "text/plain;charset=utf-8"
           },
@@ -1271,12 +1322,17 @@
           break;
         case "ubahPasswordAdmin_GS":
           const [newP] = args;
-          localStorage.setItem("mpls_admin_password", newP);
+          try {
+            localStorage.setItem("mpls_admin_password", newP);
+          } catch (e) {}
           successCallback("Sukses: Kata sandi berhasil diperbarui (Simulasi Lokal)!");
           break;
         case "verifikasiPasswordAdmin_GS":
           const [inputP] = args;
-          const savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
+          let savedP = "admin11palu";
+          try {
+            savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
+          } catch (e) {}
           if (inputP === savedP) {
             successCallback({ terverifikasi: true });
           } else {
