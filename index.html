@@ -66,9 +66,9 @@
           </div>
         </div>
         
-        <!-- Tombol Gerigi Config Utama (Sekarang selalu terlihat untuk Admin Control) -->
-        <button id="btn-config-github" onclick="bukaPanelAdmin()" class="flex items-center bg-blue-800 hover:bg-blue-900 text-xs text-white px-3 py-1.5 rounded-lg border border-blue-600 ml-4 transition shadow-sm">
-          <i class="fas fa-cog mr-1.5 text-yellow-300 animate-spin"></i> Panel Admin & Database
+        <!-- Tombol Gerigi Config Utama (Selaras dengan Spanduk Kuning) -->
+        <button id="btn-config-github" onclick="bukaPanelAdmin()" class="flex items-center bg-blue-800 hover:bg-blue-900 text-xs text-white px-3 py-1.5 rounded-lg border border-blue-600 ml-4 transition shadow-sm animate-pulse">
+          <i class="fas fa-cog mr-1.5 text-yellow-300 animate-spin"></i> Panel Admin & Setup Database
         </button>
       </div>
       
@@ -97,9 +97,21 @@
     </div>
   </header>
 
+  <!-- MODAL POPUP DIALOG CUSTOM (PENGGANTI BROWSER ALERT YANG DI-BLOKIR IFRAME) -->
+  <div id="custom-alert-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 text-center border border-gray-150">
+      <div id="custom-alert-icon" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl"></div>
+      <div>
+        <h3 id="custom-alert-title" class="text-base font-bold text-gray-800"></h3>
+        <p id="custom-alert-message" class="text-xs text-gray-500 leading-relaxed mt-1"></p>
+      </div>
+      <button onclick="tutupPesanSistem()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow">OK</button>
+    </div>
+  </div>
+
   <!-- ==================== MODAL UTAMA PANEL ADMIN (COMPREHENSIVE) ==================== -->
   <div id="github-config-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center hidden p-4 text-left overflow-y-auto">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-gray-150">
       <!-- Header Modal -->
       <div class="flex items-center justify-between border-b p-4">
         <h3 class="text-base md:text-lg font-bold text-gray-800 flex items-center">
@@ -122,8 +134,8 @@
             <p class="text-xs text-gray-400">Masukkan kata sandi Admin untuk membuka fitur edit konten dan data.</p>
           </div>
           <div class="max-w-xs mx-auto">
-            <input type="password" id="input-admin-pin" placeholder="Masukkan Sandi Admin" class="w-full text-center p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none tracking-widest text-lg font-bold">
-            <button onclick="verifikasiPinAdmin()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition text-xs">
+            <input type="password" id="input-admin-pin" placeholder="Sandi Default: admin11palu" class="w-full text-center p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none tracking-widest text-lg font-bold">
+            <button onclick="verifikasiPinAdmin()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition text-xs shadow-md">
               <i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel
             </button>
           </div>
@@ -158,13 +170,16 @@
               <input type="text" id="input-web-app-url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
             <div class="flex space-x-2">
-              <button onclick="simpanGithubConfig()" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl transition">
+              <button onclick="simpanGithubConfig()" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow">
                 <i class="fas fa-save mr-1"></i> Hubungkan Cloud Database
               </button>
-              <button onclick="hapusGithubConfig()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-2.5 px-4 rounded-xl transition">
+              <button onclick="hapusGithubConfig()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-2.5 px-4 rounded-xl transition shadow-sm">
                 Putuskan Koneksi
               </button>
             </div>
+            
+            <!-- ELEMENT NOTIF-CONFIG UNTUK TAMPILAN FEEDBACK (PENYELAMAT BUG) -->
+            <div id="notif-config" class="p-2.5 rounded-xl text-xs text-center font-bold hidden"></div>
 
             <!-- GANTI KATA SANDI SECARA REAL-TIME -->
             <div class="border-t pt-4 mt-4 space-y-2">
@@ -172,7 +187,7 @@
               <p class="text-xs text-gray-500">Sandi baru ini akan langsung disinkronkan ke file Spreadsheet di Google Drive Anda.</p>
               <div class="flex space-x-2">
                 <input type="password" id="input-new-admin-password" placeholder="Masukkan kata sandi baru" class="flex-grow text-xs p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                <button onclick="gantiPasswordAdmin()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition whitespace-nowrap">
+                <button onclick="gantiPasswordAdmin()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition whitespace-nowrap shadow-md">
                   Update Sandi
                 </button>
               </div>
@@ -325,6 +340,18 @@
             <i class="fas fa-id-card-alt text-7xl"></i>
           </div>
         </div>
+      </div>
+
+      <!-- SPANDUK STATUS OFFLINE GITHUB WARNING (Konsisten dengan nama tombol atas) -->
+      <div id="github-setup-banner" class="hidden bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-xl flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+          <div>
+            <h4 class="text-sm font-bold text-yellow-800">Menjalankan Mode Offline (GitHub Preview)</h4>
+            <p class="text-xs text-yellow-700">Agar data tersimpan ke Google Sheets secara nyata, klik tombol "Panel Admin & Setup Database" di atas.</p>
+          </div>
+        </div>
+        <button onclick="bukaPanelAdmin()" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs font-bold py-1.5 px-3 rounded-lg transition whitespace-nowrap">Atur Sekarang</button>
       </div>
 
       <!-- Live Statistics Cards -->
@@ -610,8 +637,8 @@
       welcome_desc: "Selamat datang di gerbang masa depanmu. Aplikasi MPLS Digital ini dirancang untuk memudahkan kalian mengikuti seluruh rangkaian kegiatan dengan asyik, interaktif, dan tentunya praktis!",
       visi: "Unggul dalam Prestasi, Berkarakter Mulia, dan Peduli Lingkungan Berlandaskan IMTAQ.",
       misi_1: "Menumbuhkan penghayatan terhadap ajaran agama yang dianut secara toleran.",
-      misi_2: "Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis dan non-akademis.",
-      misi_3: "Membentuk karakter disiplin, sopan santun, dan cinta tanah air.",
+      misi_2: "Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis and non-akademis.",
+      misi_3: "Membentuk karakter disiplin, sopan santun, and cinta tanah air.",
       location: "Kec. Palu Timur, Kota Palu",
       date: "Juli 2026"
     };
@@ -754,82 +781,79 @@
       }
     }
 
-    // Verifikasi Kata Sandi Admin (Sekarang Dinamis Terintegrasi dengan GSheets)
+    // Helper masuk ke Panel Admin dengan sukses
+    function masukSebagaiAdmin() {
+      adminTerverifikasi = true;
+      document.getElementById("input-admin-pin").value = "";
+      
+      const authScreen = document.getElementById("admin-auth-screen");
+      if (authScreen) authScreen.classList.add("hidden");
+      
+      const mainPanel = document.getElementById("admin-main-panel");
+      if (mainPanel) mainPanel.classList.remove("hidden");
+      
+      const logoutBtn = document.getElementById("btn-admin-logout");
+      if (logoutBtn) logoutBtn.classList.remove("hidden");
+      
+      siapkanInputAdminForm();
+      muatDataKelolaPresensiAdmin();
+    }
+
+    // Verifikasi Kata Sandi Admin (Sekarang Dinamis Terintegrasi dengan GSheets Tanpa PIN 1111)
     function verifikasiPinAdmin() {
       const pin = document.getElementById("input-admin-pin").value.trim();
       const btn = document.querySelector("#admin-auth-screen button");
       
       if (!pin) {
-        alert("Mohon masukkan kata sandi!");
+        tampilkanPesanSistem("Peringatan", "Mohon masukkan kata sandi!", "error");
         return;
       }
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fas fa-spinner animate-spin mr-1.5"></i> Memverifikasi...`;
 
+      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+
+      // Jika berjalan secara offline murni tanpa adanya database cloud / apps script terhubung
+      if (!isGoogleScript && !cloudUrl) {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
+        const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
+        if (pin === lokalPass) {
+          masukSebagaiAdmin();
+        } else {
+          tampilkanPesanSistem("Kesalahan Login", "Kata sandi salah! (Sandi offline default: admin11palu)", "error");
+        }
+        return;
+      }
+
+      // Jika terkoneksi (di Apps Script atau ada Cloud URL di Github), wajib divalidasi ke database Spreadsheet CONFIG
       hubungiBackend("verifikasiPasswordAdmin_GS", [pin], function(result) {
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
         
         if (result && result.terverifikasi) {
-          adminTerverifikasi = true;
-          document.getElementById("input-admin-pin").value = "";
-          
-          const authScreen = document.getElementById("admin-auth-screen");
-          if (authScreen) authScreen.classList.add("hidden");
-          
-          const mainPanel = document.getElementById("admin-main-panel");
-          if (mainPanel) mainPanel.classList.remove("hidden");
-          
-          const logoutBtn = document.getElementById("btn-admin-logout");
-          if (logoutBtn) logoutBtn.classList.remove("hidden");
-          
-          siapkanInputAdminForm();
-          muatDataKelolaPresensiAdmin();
+          masukSebagaiAdmin();
         } else {
-          // Fallback lokal offline
+          // BENTENG PERLINDUNGAN UTAMA: Jika sandi dari GSheets gagal / sheet belum disetup pada login pertama kali, 
+          // periksa kecocokan dengan sandi bawaan "admin11palu" agar admin tidak terkunci sistem.
           const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
-          if (pin === lokalPass || pin === "1111") {
-            adminTerverifikasi = true;
-            document.getElementById("input-admin-pin").value = "";
-            
-            const authScreen = document.getElementById("admin-auth-screen");
-            if (authScreen) authScreen.classList.add("hidden");
-            
-            const mainPanel = document.getElementById("admin-main-panel");
-            if (mainPanel) mainPanel.classList.remove("hidden");
-            
-            const logoutBtn = document.getElementById("btn-admin-logout");
-            if (logoutBtn) logoutBtn.classList.remove("hidden");
-            
-            siapkanInputAdminForm();
-            muatDataKelolaPresensiAdmin();
+          if (pin === "admin11palu" || pin === lokalPass) {
+            masukSebagaiAdmin();
           } else {
-            alert(result.pesan || "Kata sandi yang Anda masukkan salah!");
+            tampilkanPesanSistem("Kesalahan Login", result.pesan || "Kata sandi yang Anda masukkan salah!", "error");
           }
         }
       }, function(err) {
-        // Fallback jika tidak terkoneksi internet
         btn.disabled = false;
         btn.innerHTML = `<i class="fas fa-unlock mr-1.5"></i> Buka Akses Panel`;
+        
+        // Jaringan bermasalah atau gagal terhubung ke Spreadsheet, gunakan lokal fallback
         const lokalPass = localStorage.getItem("mpls_admin_password") || "admin11palu";
-        if (pin === lokalPass || pin === "1111") {
-          adminTerverifikasi = true;
-          document.getElementById("input-admin-pin").value = "";
-          
-          const authScreen = document.getElementById("admin-auth-screen");
-          if (authScreen) authScreen.classList.add("hidden");
-          
-          const mainPanel = document.getElementById("admin-main-panel");
-          if (mainPanel) mainPanel.classList.remove("hidden");
-          
-          const logoutBtn = document.getElementById("btn-admin-logout");
-          if (logoutBtn) logoutBtn.classList.remove("hidden");
-          
-          siapkanInputAdminForm();
-          muatDataKelolaPresensiAdmin();
+        if (pin === "admin11palu" || pin === lokalPass) {
+          masukSebagaiAdmin();
         } else {
-          alert("Gagal memverifikasi: Kata sandi salah atau koneksi jaringan terputus!");
+          tampilkanPesanSistem("Koneksi Gagal", "Gagal memverifikasi: Tidak dapat terhubung ke database Spreadsheet!", "error");
         }
       });
     }
@@ -838,19 +862,38 @@
     function gantiPasswordAdmin() {
       const newPass = document.getElementById("input-new-admin-password").value.trim();
       if (!newPass) {
-        alert("Kata sandi baru tidak boleh kosong!");
+        tampilkanPesanSistem("Peringatan", "Kata sandi baru tidak boleh kosong!", "error");
         return;
       }
       
+      const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+      
+      // Jika berada di GitHub Pages tanpa konfigurasi Cloud URL, langsung tolak simpan murni ke Sheets
+      if (!isGoogleScript && !cloudUrl) {
+        tampilkanPesanSistem("Koneksi Database Belum Terhubung", "Koneksi Database Cloud belum terhubung!\nSilakan isi URL Web App di atas dan simpan terlebih dahulu agar dapat memperbarui sandi langsung ke Spreadsheet.", "error");
+        return;
+      }
+
       if (confirm("Apakah Anda yakin ingin mengganti kata sandi admin?")) {
+        const btnChange = document.querySelector("#sub-admin-db button[onclick='gantiPasswordAdmin()']");
+        btnChange.disabled = true;
+        btnChange.innerHTML = `<i class="fas fa-spinner animate-spin"></i> Memproses...`;
+
         hubungiBackend("ubahPasswordAdmin_GS", [newPass], function(response) {
-          localStorage.setItem("mpls_admin_password", newPass);
-          document.getElementById("input-new-admin-password").value = "";
-          alert(response);
+          btnChange.disabled = false;
+          btnChange.innerHTML = "Update Sandi";
+          
+          if (response.indexOf("Sukses") > -1) {
+            localStorage.setItem("mpls_admin_password", newPass);
+            document.getElementById("input-new-admin-password").value = "";
+            tampilkanPesanSistem("Sukses", response, "success");
+          } else {
+            tampilkanPesanSistem("Info", response, "info");
+          }
         }, function(err) {
-          localStorage.setItem("mpls_admin_password", newPass);
-          document.getElementById("input-new-admin-password").value = "";
-          alert("Disimpan secara lokal (Simulasi): Kata sandi admin berhasil diperbarui!");
+          btnChange.disabled = false;
+          btnChange.innerHTML = "Update Sandi";
+          tampilkanPesanSistem("Kesalahan Koneksi", "Gagal menyambung ke server cloud: " + err + "\nKata sandi tidak dapat diubah tanpa koneksi Spreadsheet aktif.", "error");
         });
       }
     }
@@ -926,7 +969,7 @@
         console.log("Berhasil sinkronisasi Beranda ke Spreadsheet!");
       });
 
-      alert("Sukses: Konten Beranda berhasil diperbarui!");
+      tampilkanPesanSistem("Sukses", "Konten Beranda berhasil diperbarui!", "success");
     }
 
     // Simpan Perubahan Jadwal
@@ -951,7 +994,7 @@
         console.log("Berhasil sinkronisasi Jadwal ke Spreadsheet!");
       });
 
-      alert("Sukses: Lini masa Jadwal MPLS berhasil diperbarui!");
+      tampilkanPesanSistem("Sukses", "Lini masa Jadwal MPLS berhasil diperbarui!", "success");
     }
 
     // Memuat daftar presensi khusus untuk panel kelola admin
@@ -995,7 +1038,7 @@
       if (isGoogleScript) {
         // Mode Online Google Sheets
         google.script.run.withSuccessHandler(function(response) {
-          alert(response);
+          tampilkanPesanSistem("Berhasil", response, "success");
           muatDataPresensi();
           muatDataKelolaPresensiAdmin();
           muatStatistikDashboard();
@@ -1009,7 +1052,7 @@
           let targetDummy = dummyPresensi.find(x => x.nama === itemNama);
           if (targetDummy) targetDummy.status = statusBaru;
           
-          alert("Sukses: Status " + itemNama + " berhasil diubah menjadi " + statusBaru + " (Mode Simulasi)!");
+          tampilkanPesanSistem("Sukses", "Status " + itemNama + " berhasil diubah menjadi " + statusBaru + " (Mode Simulasi)!", "success");
           muatDataPresensi();
           muatDataKelolaPresensiAdmin();
           muatStatistikDashboard();
@@ -1024,7 +1067,7 @@
       if (isGoogleScript) {
         // Mode Online Google Sheets
         google.script.run.withSuccessHandler(function(response) {
-          alert(response);
+          tampilkanPesanSistem("Berhasil", response, "success");
           muatDataPresensi();
           muatDataKelolaPresensiAdmin();
           muatStatistikDashboard();
@@ -1036,7 +1079,7 @@
           dummyPresensi = dummyPresensi.filter(x => x.nama !== itemNama);
           dataPresensiTerbaru.splice(index, 1);
           
-          alert("Sukses: Data presensi " + itemNama + " berhasil dihapus!");
+          tampilkanPesanSistem("Sukses", "Data presensi " + itemNama + " berhasil dihapus!", "success");
           muatDataPresensi();
           muatDataKelolaPresensiAdmin();
           muatStatistikDashboard();
@@ -1082,13 +1125,47 @@
       if (modal) modal.classList.toggle("hidden");
     }
 
+    // IMPLEMENTASI FUNGSI PENGHUBUNG DATABASE CLOUD YANG HILANG (PENYEBAB REFERENCEERROR)
+    function simpanGithubConfig() {
+      const url = document.getElementById("input-web-app-url").value.trim();
+      const notif = document.getElementById("notif-config");
+      
+      if (!url || url.indexOf("https://script.google.com") === -1) {
+        tampilkanNotifikasi(notif, "Peringatan: URL Apps Script Web App yang Anda masukkan tidak valid!", false);
+        return;
+      }
+      
+      localStorage.setItem("mpls_cloud_db_url", url);
+      tampilkanNotifikasi(notif, "Sukses: Koneksi Cloud Database berhasil disimpan!", true);
+      
+      setTimeout(() => {
+        toggleGithubConfigModal();
+        inisialisasiGithubEnvironment();
+        muatStatistikDashboard();
+        muatDataPresensi();
+      }, 1000);
+    }
+
+    function hapusGithubConfig() {
+      localStorage.removeItem("mpls_cloud_db_url");
+      const inputUrl = document.getElementById("input-web-app-url");
+      if (inputUrl) inputUrl.value = "";
+      const notif = document.getElementById("notif-config");
+      tampilkanNotifikasi(notif, "Sukses: Konfigurasi dihapus. Kembali ke mode simulasi.", true);
+      
+      setTimeout(() => {
+        toggleGithubConfigModal();
+        location.reload();
+      }, 1000);
+    }
+
     // UPDATE UI INDIKATOR BADGE KONEKSI SECARA REAL-TIME
     function updateDatabaseStatusBadge(isReal) {
       const badge = document.getElementById("db-status-badge");
       if (!badge) return;
       if (isReal) {
         badge.className = "px-2 py-0.5 text-xs font-bold rounded-full bg-green-100 text-green-800 flex items-center";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span> Google Sheets Aktif`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span> Google Sheets Active`;
       } else {
         badge.className = "px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 flex items-center";
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-500 mr-1.5"></span> Mode Simulasi (Offline)`;
@@ -1193,6 +1270,20 @@
           });
           successCallback("Sukses: Pertanyaan dikirim (Mode Simulasi)!");
           break;
+        case "ubahPasswordAdmin_GS":
+          const [newP] = args;
+          localStorage.setItem("mpls_admin_password", newP);
+          successCallback("Sukses: Kata sandi berhasil diperbarui (Simulasi Lokal)!");
+          break;
+        case "verifikasiPasswordAdmin_GS":
+          const [inputP] = args;
+          const savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
+          if (inputP === savedP) {
+            successCallback({ terverifikasi: true });
+          } else {
+            successCallback({ terverifikasi: false, pesan: "Kata sandi salah!" });
+          }
+          break;
       }
     }
 
@@ -1230,10 +1321,10 @@
           indeksKameraAktif = backCameraIndex !== -1 ? backCameraIndex : 0;
           memulaiStreamKamera(daftarKameraTersedia[indeksKameraAktif].id);
         } else {
-          alert("Sistem tidak mendeteksi perangkat kamera aktif!");
+          tampilkanPesanSistem("Kamera Tidak Terdeteksi", "Sistem tidak mendeteksi perangkat kamera aktif!", "error");
         }
       }).catch(err => {
-        alert("Gagal mengakses daftar kamera: " + err);
+        tampilkanPesanSistem("Gagal Kamera", "Gagal mengakses daftar kamera: " + err, "error");
       });
     }
 
@@ -1311,7 +1402,7 @@
 
     function pilihKameraLain() {
       if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) {
-        if (daftarKameraTersedia.length <= 1) alert("Perangkat Anda hanya memiliki satu kamera aktif.");
+        if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
       indeksKameraAktif = (indeksKameraAktif + 1) % daftarKameraTersedia.length;
@@ -1343,8 +1434,6 @@
         });
       }
     }
-
-    // MEMULIHKAN FUNGSI muatDataPresensi YANG HILANG DI BAWAH SINI
 
     // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal
     function muatDataPresensi() {
@@ -1426,7 +1515,7 @@
     // ==================== REKAP UNDUHAN (EXCEL & PDF) ====================
     function unduhExcel() {
       if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
-        alert("Tidak ada data presensi harian untuk diunduh!");
+        tampilkanPesanSistem("Perhatian", "Tidak ada data presensi harian untuk diunduh!", "error");
         return;
       }
 
@@ -1454,7 +1543,7 @@
 
     function unduhPDF() {
       if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
-        alert("Tidak ada data presensi harian untuk diunduh!");
+        tampilkanPesanSistem("Peringatan", "Tidak ada data presensi harian untuk diunduh!", "error");
         return;
       }
 
@@ -1660,6 +1749,39 @@
         btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Kirim Pesan`;
         tampilkanNotifikasi(notif, "Error: Gagal mengirim pertanyaan ke server cloud.", false);
       });
+    }
+
+    // Kustom Modal Alert Handler untuk mengganti Alert bawaan browser
+    function tampilkanPesanSistem(judul, pesan, tipe = 'info') {
+      const modal = document.getElementById("custom-alert-modal");
+      const iconDiv = document.getElementById("custom-alert-icon");
+      const titleEl = document.getElementById("custom-alert-title");
+      const msgEl = document.getElementById("custom-alert-message");
+      
+      if (!modal) return;
+      
+      titleEl.innerText = judul;
+      msgEl.innerText = pesan;
+      
+      // Atur icon & warna berdasarkan tipe
+      iconDiv.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl ";
+      if (tipe === 'error') {
+        iconDiv.classList.add("bg-rose-100", "text-rose-600");
+        iconDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i>`;
+      } else if (tipe === 'success') {
+        iconDiv.classList.add("bg-emerald-100", "text-emerald-600");
+        iconDiv.innerHTML = `<i class="fas fa-check-circle"></i>`;
+      } else {
+        iconDiv.classList.add("bg-blue-100", "text-blue-600");
+        iconDiv.innerHTML = `<i class="fas fa-info-circle"></i>`;
+      }
+      
+      modal.classList.remove("hidden");
+    }
+    
+    function tutupPesanSistem() {
+      const modal = document.getElementById("custom-alert-modal");
+      if (modal) modal.classList.add("hidden");
     }
 
     // Helper Penampil Notifikasi
