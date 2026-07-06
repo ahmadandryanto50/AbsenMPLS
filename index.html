@@ -188,7 +188,7 @@
               </button>
             </div>
             
-            <!-- ELEMENT NOTIF-CONFIG UNTUK TAMPILAN FEEDBACK (PENYELAMAT BUG) -->
+            <!-- ELEMENT NOTIF-CONFIG UNTUK TAMPILAN FEEDBACK (PENGOBAT BUG) -->
             <div id="notif-config" class="p-2.5 rounded-xl text-xs text-center font-bold hidden"></div>
 
             <!-- GANTI KATA SANDI SECARA REAL-TIME -->
@@ -366,7 +366,7 @@
 
       <!-- Live Statistics Cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-150 flex items-center space-x-3">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-3">
           <div class="p-3 rounded-lg bg-blue-100 text-blue-600">
             <i class="fas fa-users text-xl"></i>
           </div>
@@ -390,7 +390,7 @@
           </div>
           <div>
             <p class="text-xs text-gray-400 font-medium">Izin</p>
-            <h4 id="stat-izin" class="text-lg font-bold text-yellow-600">-</h4>
+            <h4 id="stat-izin" class="text-lg font-bold text-yellow-800">-</h4>
           </div>
         </div>
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-150 flex items-center space-x-3">
@@ -407,15 +407,15 @@
       <!-- Quick Action Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Visi Misi Sekolah (DI-RENDER SECARA DINAMIS) -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-150">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 class="text-lg font-bold text-blue-900 border-b pb-3 mb-3">
             <i class="fas fa-eye text-yellow-500 mr-2"></i> Visi & Misi SMPN 11 Palu
           </h3>
           <p id="home-visi-text" class="text-sm font-semibold text-gray-700 italic mb-2">"Unggul dalam Prestasi, Berkarakter Mulia, dan Peduli Lingkungan Berlandaskan IMTAQ."</p>
           <ul id="home-misi-list" class="text-xs text-gray-600 space-y-2 list-decimal list-inside">
             <li>Menumbuhkan penghayatan terhadap ajaran agama yang dianut secara toleran.</li>
-            <li>Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis and non-akademis.</li>
-            <li>Membentuk karakter disiplin, sopan santun, and cinta tanah air.</li>
+            <li>Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis dan non-akademis.</li>
+            <li>Membentuk karakter disiplin, sopan santun, dan cinta tanah air.</li>
           </ul>
         </div>
 
@@ -957,6 +957,7 @@
     }
 
     // Masukkan data aktif ke dalam field form Admin
+    // Edit Beranda
     function siapkanInputAdminForm() {
       document.getElementById("edit-welcome-title").value = appConfig.welcome_title;
       document.getElementById("edit-welcome-desc").value = appConfig.welcome_desc;
@@ -1315,8 +1316,8 @@
         fps: 24, // Web camera frames rate
         qrbox: (width, height) => {
           // Dimensi kotak pemindaian persegi panjang yang proporsional untuk Barcode 1D (lebar mendatar) & QR Code 2D
-          let boxWidth = Math.floor(width * 0.85);
-          let boxHeight = Math.floor(height * 0.55);
+          let boxWidth = Math.floor(width * 0.9);
+          let boxHeight = Math.floor(height * 0.45);
           // Safeguard batas ukuran agar tidak crash
           if (boxWidth < 250 || isNaN(boxWidth)) boxWidth = 260;
           if (boxHeight < 110 || isNaN(boxHeight)) boxHeight = 120;
@@ -1512,7 +1513,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransTransition) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera seutuhnya!
+      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera seutuhnya!
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
@@ -1520,8 +1521,9 @@
       memulaiStreamKamera(daftarKameraTersedia[indeksKameraAktif].id);
     }
 
+    // PERBAIKAN TYPO sedangTransisiKamera
     function kontrolScanner() {
-      if (sedangTransisiKamera) return; // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera seutuhnya!
+      if (sedangTransisiKamera) return; 
       if (kameraSedangAktif) {
         matikanPemindaiKamera();
       } else {
@@ -1552,7 +1554,7 @@
       const btnToggle = document.getElementById('btn-toggle-scanner');
       if (btnToggle) {
         btnToggle.className = "flex-1 bg-green-500 hover:bg-green-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
-        btnToggle.innerHTML = `<i class="fas fa-play mr-1.5"></i> {Aktifkan Kamera}`;
+        btnToggle.innerHTML = `<i class="fas fa-play mr-1.5"></i> Aktifkan Kamera`;
       }
     }
 
@@ -1623,7 +1625,7 @@
 
         const worksheet = XLSX.utils.json_to_sheet(formatDataExcel);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi MPLS");
+        Xlocal_book = XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi MPLS");
 
         const wscols = [
           {wch: 5}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 25}, {wch: 20}, {wch: 18}, {wch: 20}
@@ -1706,6 +1708,7 @@
       });
     }
 
+    // PENYELAMAT SINTAKS: Pemulihan fungsi kirimPresensi yang hilang dari Canvas sebelumnya!
     function kirimPresensi() {
       const nama = document.getElementById("absen-nama").value.trim();
       let sd = document.getElementById("absen-sd").value.trim();
@@ -1752,6 +1755,32 @@
         }
         tampilkanNotifikasi(notif, "Error: Gagal terhubung ke server cloud.", false);
       });
+    }
+
+    function mainkanNadaBip() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        
+        oscillator.start();
+        setTimeout(() => {
+          oscillator.stop();
+          audioCtx.close();
+        }, 120);
+      } catch (err) { }
+    }
+
+    function tampilkanNotifikasiEkstraScan(pesan) {
+      const notif = document.getElementById("notif-absen");
+      tampilkanNotifikasi(notif, "Info: " + pesan, true);
     }
 
     // ==================== TANYA JAWAB PANITIA ====================
@@ -1861,7 +1890,7 @@
       
       if (!modal) return;
       
-      titleEl.innerText = judul;
+      titleEl.innerText = parseInt(judul) ? "Notifikasi" : judul;
       msgEl.innerText = pesan;
       
       // Atur icon & warna berdasarkan tipe
