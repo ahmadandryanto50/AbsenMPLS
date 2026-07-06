@@ -1077,6 +1077,7 @@
     }
 
     // Fungsi Penghapus Baris Siswa dari Admin Panel
+    // Menghapus data presensi di database
     function hapusPresensiSiswaAdmin(index) {
       if (!confirm("Apakah Anda yakin ingin menghapus data presensi siswa ini?")) return;
 
@@ -1259,6 +1260,23 @@
       // Buat instansi pemindai baru yang segar
       pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
 
+      // Menambahkan seluruh format dekoder barcode (Code 128, Code 39, dsb) agar barcode kartu siswa terbaca andal
+      let supportedFormats = [];
+      if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+        supportedFormats = [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.ITF
+        ];
+      }
+
       // KONFIGURASI KAMERA KOMPATIBEL TINGGI
       // Menghilangkan 'aspectRatio' kaku untuk mencegah kegagalan inisialisasi / OverconstrainedError di banyak perangkat HP
       const config = {
@@ -1272,6 +1290,7 @@
           if (boxHeight < 120 || isNaN(boxHeight)) boxHeight = 150;
           return { width: boxWidth, height: boxHeight };
         },
+        formatsToSupport: supportedFormats,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true // Memicu chip hardware decoding internal HP agar pemindaian lebih responsif
         }
