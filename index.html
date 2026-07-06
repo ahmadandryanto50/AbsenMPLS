@@ -41,6 +41,17 @@
       box-shadow: 0 0 8px #ef4444;
       animation: scanning 2s infinite linear;
       z-index: 10;
+      pointer-events: none; /* Cegah laser menghalangi interaksi fokus kamera */
+    }
+    /* Penyelaras Video dan Overlay HTML5-QRCode */
+    #scanner-viewfinder video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important; /* Mencegah kamera melar/penyet di layar seluler */
+      border-radius: 12px;
+    }
+    #scanner-viewfinder {
+      border: none !important;
     }
     @keyframes scanning {
       0% { top: 0%; }
@@ -447,11 +458,12 @@
 
           <!-- CONTAINER SCANNER CAMERA -->
           <div id="container-scanner" class="hidden space-y-3 mb-4">
-            <div class="relative bg-black rounded-xl overflow-hidden min-h-[300px] md:min-h-[350px] border-4 border-blue-500 shadow-inner flex flex-col justify-center items-center">
+            <!-- PENTING: Menghilangkan flex-col centering agar tidak membuat video html5-qrcode berukuran h-0 -->
+            <div class="relative bg-black rounded-xl overflow-hidden min-h-[300px] md:min-h-[350px] border-4 border-blue-500 shadow-inner">
               <!-- Laser Line Overlay -->
-              <div class="scanner-laser"></div>
+              <div class="scanner-laser pointer-events-none"></div>
               <!-- HTML5 QR Scanner Target -->
-              <div id="scanner-viewfinder" class="w-full"></div>
+              <div id="scanner-viewfinder" class="w-full h-full min-h-[300px]"></div>
             </div>
             
             <div class="flex space-x-2">
@@ -1214,7 +1226,7 @@
         btnScan.className = "flex-1 py-2 text-center rounded-lg bg-white text-blue-900 shadow";
         btnManual.className = "flex-1 py-2 text-center rounded-lg text-gray-600 hover:text-blue-900";
         containerScanner.classList.remove('hidden');
-        setTimeout(nyalakanPemindaiKamera, 350); // Menambahkan jeda yang aman agar rendering DOM viewport selesai sempurna
+        setTimeout(nyalakanPemindaiKamera, 250); // Menambahkan jeda yang aman agar rendering DOM viewport selesai sempurna
       }
     }
 
@@ -1249,11 +1261,18 @@
       pemindaiKamera.start(
         { facingMode: "environment" }, 
         {
-          fps: 15,
+          fps: 20, // Menaikkan FPS agar tracking frame barcode bergerak lebih cepat dan lincah
           qrbox: (width, height) => {
-            let sideLength = Math.min(width, height) * 0.7;
-            if (sideLength < 100 || isNaN(sideLength)) sideLength = 200; // Safeguard dari crash parsing integer
-            return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
+            // Mengubah area kotak bidik (viewfinder) menjadi persegi panjang horizontal yang ideal
+            // untuk memindai Barcode 1D (memanjang lebar) maupun QR Code 2D secara bersamaan.
+            let boxWidth = Math.floor(width * 0.85);
+            let boxHeight = Math.floor(height * 0.55);
+            if (boxWidth < 200) boxWidth = 220;
+            if (boxHeight < 150) boxHeight = 180;
+            return { width: boxWidth, height: boxHeight };
+          },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true // Mengaktifkan akselerasi sensor hardware HP untuk deteksi kilat
           }
         },
         onScanSuccess,
@@ -1296,11 +1315,16 @@
             pemindaiKamera.start(
               daftarKameraTersedia[indeksKameraAktif].id,
               {
-                fps: 15,
+                fps: 20,
                 qrbox: (width, height) => {
-                  let sideLength = Math.min(width, height) * 0.7;
-                  if (sideLength < 100 || isNaN(sideLength)) sideLength = 200; // Safeguard
-                  return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
+                  let boxWidth = Math.floor(width * 0.85);
+                  let boxHeight = Math.floor(height * 0.55);
+                  if (boxWidth < 200) boxWidth = 220;
+                  if (boxHeight < 150) boxHeight = 180;
+                  return { width: boxWidth, height: boxHeight };
+                },
+                experimentalFeatures: {
+                  useBarCodeDetectorIfSupported: true
                 }
               },
               onScanSuccess,
@@ -1345,11 +1369,16 @@
       pemindaiKamera.start(
         cameraId, 
         {
-          fps: 15,
+          fps: 20,
           qrbox: (width, height) => {
-            let sideLength = Math.min(width, height) * 0.7;
-            if (sideLength < 100 || isNaN(sideLength)) sideLength = 200; // Safeguard
-            return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
+            let boxWidth = Math.floor(width * 0.85);
+            let boxHeight = Math.floor(height * 0.55);
+            if (boxWidth < 200) boxWidth = 220;
+            if (boxHeight < 150) boxHeight = 180;
+            return { width: boxWidth, height: boxHeight };
+          },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
           }
         },
         onScanSuccess,
