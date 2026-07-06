@@ -279,7 +279,7 @@
           <div id="sub-admin-presensi" class="hidden space-y-4">
             <div class="flex justify-between items-center">
               <h4 class="font-bold text-xs text-gray-700 uppercase">Ubah status atau hapus data absensi siswa harian</h4>
-              <span class="text-xs text-gray-400 italic">Maksimal 15 baris terakhir</span>
+              <span class="text-xs text-gray-400 italic">Daftar semua siswa terdaftar</span>
             </div>
             
             <div class="overflow-x-auto border rounded-xl max-h-60 overflow-y-auto">
@@ -397,7 +397,7 @@
       <!-- Quick Action Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Visi Misi Sekolah (DI-RENDER SECARA DINAMIS) -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-150">
           <h3 class="text-lg font-bold text-blue-900 border-b pb-3 mb-3">
             <i class="fas fa-eye text-yellow-500 mr-2"></i> Visi & Misi SMPN 11 Palu
           </h3>
@@ -1006,12 +1006,12 @@
       tampilkanPesanSistem("Sukses", "Lini masa Jadwal MPLS berhasil diperbarui!", "success");
     }
 
-    // Memuat daftar presensi khusus untuk panel kelola admin
+    // Memuat daftar presensi khusus untuk panel kelola admin (Mendukung semua data tanpa batas)
     function muatDataKelolaPresensiAdmin() {
       const tbody = document.getElementById("admin-tabel-kelola");
       tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-400 italic"><i class="fas fa-spinner animate-spin"></i> Memuat data siswa...</td></tr>`;
       
-      hubungiBackend("ambilDaftarPresensi", [], function(data) {
+      hubungiBackend("ambilSemuaDaftarPresensi", [], function(data) {
         tbody.innerHTML = "";
         if (!data || data.length === 0) {
           tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-400 italic">Belum ada siswa yang absen harian.</td></tr>`;
@@ -1231,11 +1231,7 @@
           if (successCallback) successCallback("Fungsi " + actionName + " tidak terdefinisi di Kode.gs. Menjalankan fallback lokal.");
         }
       } else {
-        let cloudUrl = "";
-        try {
-          cloudUrl = localStorage.getItem("mpls_cloud_db_url") || "";
-        } catch (e) {}
-
+        const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
         if (!cloudUrl) {
           updateDatabaseStatusBadge(false);
           jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
@@ -1536,7 +1532,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransTransition) {
+      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) {
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
@@ -1570,20 +1566,21 @@
       }
     }
 
-    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal (tetap dibatasi 15 untuk optimasi UI)
+    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal
+    // Diubah: Mengambil "ambilSemuaDaftarPresensi" untuk menampilkan semua nama siswa yang absen di layar depan
     function muatDataPresensi() {
       const tbody = document.getElementById("tabel-presensi");
       if (tbody) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-gray-500"><i class="fas fa-spinner animate-spin mr-2"></i>Menghubungkan basis data...</td></tr>`;
       }
 
-      hubungiBackend("ambilDaftarPresensi", [], function(data) {
+      hubungiBackend("ambilSemuaDaftarPresensi", [], function(data) {
         renderTabelPresensi(data);
       });
     }
 
     function renderTabelPresensi(data) {
-      dataPresensiTerbaru = data; // Simpan salinan data aktif 15 baris terakhir
+      dataPresensiTerbaru = data; // Simpan seluruh salinan data aktif
       const tbody = document.getElementById("tabel-presensi");
       if (!tbody) return;
       tbody.innerHTML = "";
@@ -1663,23 +1660,23 @@
         const doc = new jsPDF('p', 'mm', 'a4');
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
+        doc.setFontSize(14);
         doc.setTextColor(30, 58, 138); 
         doc.text("PANITIA MASA PENGENALAN LINGKUNGAN SEKOLAH (MPLS)", 14, 15);
         
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(15);
+        doc.setFontSize(16);
         doc.setTextColor(17, 24, 39);
-        doc.text("SMP NEGERI 11 PALU", 14, 21);
+        doc.text("SMP NEGERI 11 PALU", 14, 22);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(107, 114, 128);
-        doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 26);
+        doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 27);
 
         doc.setDrawColor(30, 58, 138);
-        doc.setLineWidth(0.6);
-        doc.line(14, 29, 196, 29);
+        doc.setLineWidth(0.8);
+        doc.line(14, 31, 196, 31);
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
