@@ -1259,20 +1259,13 @@
       // Buat instansi pemindai baru yang segar
       pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
 
+      // KONFIGURASI KAMERA KOMPATIBEL TINGGI
+      // Menghapus 'aspectRatio' kaku untuk mencegah kegagalan inisialisasi / OverconstrainedError di banyak perangkat HP
       const config = {
-        fps: 24, // Naikkan fps untuk kecepatan pindai super responsif
-        qrbox: (width, height) => {
-          // Dimensi kotak pemindaian persegi panjang yang proporsional untuk Barcode 1D (lebar mendatar) & QR Code 2D
-          let boxWidth = Math.floor(width * 0.85);
-          let boxHeight = Math.floor(height * 0.55);
-          // Safeguard batas ukuran agar tidak crash
-          if (boxWidth < 200 || isNaN(boxWidth)) boxWidth = 240;
-          if (boxHeight < 120 || isNaN(boxHeight)) boxHeight = 150;
-          return { width: boxWidth, height: boxHeight };
-        },
-        aspectRatio: 1.777778, // Desain rasio 16:9 sinematik yang sangat tajam untuk kamera HP
+        fps: 20, // Frames per second yang optimal dan ringan untuk prosesor HP
+        qrbox: { width: 250, height: 150 }, // Dimensi persegi panjang statis yang ideal untuk melacak Barcode 1D & QR Code 2D secara instan
         experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true // Gunakan sensor akselerasi peranti keras HP
+          useBarCodeDetectorIfSupported: true // Memicu chip hardware decoding internal HP agar pemindaian lebih responsif
         }
       };
 
@@ -1356,13 +1349,7 @@
         cameraId, 
         {
           fps: 20,
-          qrbox: (width, height) => {
-            let boxWidth = Math.floor(width * 0.85);
-            let boxHeight = Math.floor(height * 0.55);
-            if (boxWidth < 200 || isNaN(boxWidth)) boxWidth = 240;
-            if (boxHeight < 120 || isNaN(boxHeight)) boxHeight = 150;
-            return { width: boxWidth, height: boxHeight };
-          },
+          qrbox: { width: 250, height: 150 },
           experimentalFeatures: {
             useBarCodeDetectorIfSupported: true
           }
@@ -1442,7 +1429,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransTransition) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera
+      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
@@ -1451,7 +1438,7 @@
     }
 
     function kontrolScanner() {
-      if (sedangTransTransition) return;
+      if (sedangTransisiKamera) return; // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera
       if (kameraSedangAktif) {
         matikanPemindaiKamera();
       } else {
@@ -1566,6 +1553,7 @@
       });
     }
 
+    // Pengeksporan rekap presensi utuh ke dokumen PDF
     function unduhPDF() {
       tampilkanPesanSistem("Mengunduh", "Sedang memproses seluruh rekap presensi dari basis data cloud ke dokumen PDF resmi...", "info");
       
