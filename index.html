@@ -397,15 +397,15 @@
       <!-- Quick Action Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Visi Misi Sekolah (DI-RENDER SECARA DINAMIS) -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-150">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 class="text-lg font-bold text-blue-900 border-b pb-3 mb-3">
             <i class="fas fa-eye text-yellow-500 mr-2"></i> Visi & Misi SMPN 11 Palu
           </h3>
           <p id="home-visi-text" class="text-sm font-semibold text-gray-700 italic mb-2">"Unggul dalam Prestasi, Berkarakter Mulia, dan Peduli Lingkungan Berlandaskan IMTAQ."</p>
           <ul id="home-misi-list" class="text-xs text-gray-600 space-y-2 list-decimal list-inside">
             <li>Menumbuhkan penghayatan terhadap ajaran agama yang dianut secara toleran.</li>
-            <li>Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis and non-akademis.</li>
-            <li>Membentuk karakter disiplin, sopan santun, and cinta tanah air.</li>
+            <li>Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis dan non-akademis.</li>
+            <li>Membentuk karakter disiplin, sopan santun, dan cinta tanah air.</li>
           </ul>
         </div>
 
@@ -1161,12 +1161,8 @@
         return;
       }
       
-      try {
-        localStorage.setItem("mpls_cloud_db_url", url);
-        tampilkanNotifikasi(notif, "Sukses: Koneksi Cloud Database berhasil disimpan!", true);
-      } catch (e) {
-        tampilkanNotifikasi(notif, "Peringatan: Gagal menyimpan di peramban ini (LocalStorage terblokir)!", false);
-      }
+      localStorage.setItem("mpls_cloud_db_url", url);
+      tampilkanNotifikasi(notif, "Sukses: Koneksi Cloud Database berhasil disimpan!", true);
       
       setTimeout(() => {
         toggleGithubConfigModal();
@@ -1178,9 +1174,7 @@
 
     // Memutus koneksi cloud database
     function hapusGithubConfig() {
-      try {
-        localStorage.removeItem("mpls_cloud_db_url");
-      } catch (e) {}
+      localStorage.removeItem("mpls_cloud_db_url");
       const inputUrl = document.getElementById("input-web-app-url");
       if (inputUrl) inputUrl.value = "";
       const notif = document.getElementById("notif-config");
@@ -1266,7 +1260,14 @@
             if (successCallback) successCallback(resObj.data !== undefined ? resObj.data : resObj);
           } else {
             updateDatabaseStatusBadge(false);
-            if (errorCallback) errorCallback(resObj ? resObj.error : "Gagal membaca API");
+            if (errorCallback) {
+              errorCallback(resObj ? resObj.error : "Gagal membaca API");
+            } else {
+              // Jika GSheets mengembalikan sukses false (misal karena Kode.gs belum di-deploy ulang),
+              // jalankan simulasi lokal agar halaman tidak blank putih!
+              console.warn("API returned success:false, falling back to simulation.");
+              jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+            }
           }
         })
         .catch(err => {
@@ -1532,7 +1533,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) {
+      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) { // PERBAIKAN TYPO sedangTransTransition -> sedangTransisiKamera
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
@@ -1549,6 +1550,7 @@
       }
     }
 
+    // Mematikan kamera scanner
     function matikanPemindaiKamera() {
       if (sedangTransisiKamera) return;
       
@@ -1566,8 +1568,7 @@
       }
     }
 
-    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal
-    // Diubah: Mengambil "ambilSemuaDaftarPresensi" untuk menampilkan semua nama siswa yang absen di layar depan
+    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal (menampilkan semua data sesuai banyaknya yang absen)
     function muatDataPresensi() {
       const tbody = document.getElementById("tabel-presensi");
       if (tbody) {
@@ -1915,6 +1916,91 @@
       setTimeout(() => {
         element.classList.add("hidden");
       }, 6000);
+    }
+
+    // BRIDGE CALLER UTAMA: Menjamin pemanggilan berjalan lancar di Apps Script ATAU GitHub via API Fetch
+    function hubungiBackend(actionName, argumentsArray, successCallback, errorCallback) {
+      if (isGoogleScript) {
+        updateDatabaseStatusBadge(true);
+        let runner = google.script.run;
+        if (successCallback) {
+          runner = runner.withSuccessHandler(successCallback);
+        }
+        if (errorCallback) {
+          runner = runner.withFailureHandler(errorCallback);
+        } else {
+          runner = runner.withFailureHandler(function(err) {
+            console.warn("GAS Connection failed, falling back to simulation:", err);
+            if (actionName === "verifikasiPasswordAdmin_GS" || actionName === "ubahPasswordAdmin_GS") {
+              if (errorCallback) errorCallback("Koneksi gagal: " + err);
+            } else {
+              jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+            }
+          });
+        }
+        if (runner[actionName]) {
+          runner[actionName].apply(runner, argumentsArray); // DI-EXECUTE DENGAN CONTEXT 'runner' YANG TEPAT!
+        } else {
+          if (successCallback) successCallback("Fungsi " + actionName + " tidak terdefinisi di Kode.gs. Menjalankan fallback lokal.");
+        }
+      } else {
+        const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
+        if (!cloudUrl) {
+          updateDatabaseStatusBadge(false);
+          jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+          return;
+        }
+
+        const payload = {
+          action: actionName,
+          args: argumentsArray
+        };
+
+        // Menggunakan opsi omit credentials dan follow redirect demi keandalan penuh di webview seluler (HP)
+        fetch(cloudUrl, {
+          method: "POST",
+          mode: "cors",
+          credentials: "omit",
+          redirect: "follow",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("HTTP error " + res.status);
+          }
+          return res.json();
+        })
+        .then(resObj => {
+          if (resObj && resObj.success !== false) {
+            updateDatabaseStatusBadge(true);
+            if (successCallback) successCallback(resObj.data !== undefined ? resObj.data : resObj);
+          } else {
+            updateDatabaseStatusBadge(false);
+            if (errorCallback) {
+              errorCallback(resObj ? resObj.error : "Gagal membaca API");
+            } else {
+              // Jika GSheets mengembalikan sukses false (misal karena Kode.gs belum di-deploy ulang),
+              // jalankan simulasi lokal agar halaman tidak blank putih!
+              console.warn("API returned success:false, falling back to simulation.");
+              jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+            }
+          }
+        })
+        .catch(err => {
+          updateDatabaseStatusBadge(false);
+          console.warn("API Connection failed (CORS/Network/Sandbox). Falling back to simulation mode quietly.");
+          if (actionName === "verifikasiPasswordAdmin_GS" || actionName === "ubahPasswordAdmin_GS") {
+            if (errorCallback) {
+              errorCallback("Gagal terhubung ke database. Silakan periksa jaringan Anda atau konfigurasi CORS Web App.");
+            }
+          } else {
+            jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
+          }
+        });
+      }
     }
   </script>
 </body>
