@@ -637,8 +637,8 @@
       welcome_desc: "Selamat datang di gerbang masa depanmu. Aplikasi MPLS Digital ini dirancang untuk memudahkan kalian mengikuti seluruh rangkaian kegiatan dengan asyik, interaktif, dan tentunya praktis!",
       visi: "Unggul dalam Prestasi, Berkarakter Mulia, dan Peduli Lingkungan Berlandaskan IMTAQ.",
       misi_1: "Menumbuhkan penghayatan terhadap ajaran agama yang dianut secara toleran.",
-      misi_2: "Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis and non-akademis.",
-      misi_3: "Membentuk karakter disiplin, sopan santun, and cinta tanah air.",
+      misi_2: "Melaksanakan pembelajaran efektif untuk mengoptimalkan potensi akademis dan non-akademis.",
+      misi_3: "Membentuk karakter disiplin, sopan santun, dan cinta tanah air.",
       location: "Kec. Palu Timur, Kota Palu",
       date: "Juli 2026"
     };
@@ -1303,6 +1303,9 @@
         case "ambilDaftarPresensi":
           successCallback(dummyPresensi);
           break;
+        case "ambilSemuaDaftarPresensi":
+          successCallback(dummyPresensi);
+          break;
         case "simpanPresensiSiswa":
           const [nama, nisn, sd, gugus, status, catatan] = args;
           dummyPresensi.unshift({
@@ -1533,7 +1536,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) {
+      if (daftarKameraTersedia.length <= 1 || sedangTransTransition) {
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
@@ -1567,7 +1570,7 @@
       }
     }
 
-    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal
+    // Memuat daftar presensi harian secara utuh dari Google Sheets atau Simulasi lokal (tetap dibatasi 15 untuk optimasi UI)
     function muatDataPresensi() {
       const tbody = document.getElementById("tabel-presensi");
       if (tbody) {
@@ -1580,7 +1583,7 @@
     }
 
     function renderTabelPresensi(data) {
-      dataPresensiTerbaru = data; // Simpan salinan data aktif untuk unduhan PDF / Excel harian
+      dataPresensiTerbaru = data; // Simpan salinan data aktif 15 baris terakhir
       const tbody = document.getElementById("tabel-presensi");
       if (!tbody) return;
       tbody.innerHTML = "";
@@ -1610,132 +1613,111 @@
       });
     }
 
-    function ubahUIPemindaiMati() {
-      const btnToggle = document.getElementById('btn-toggle-scanner');
-      if (btnToggle) {
-        btnToggle.className = "flex-1 bg-green-500 hover:bg-green-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
-        btnToggle.innerHTML = `<i class="fas fa-play mr-1.5"></i> Aktifkan Kamera`;
-      }
-    }
-
-    function mainkanNadaBip() {
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
-        
-        oscillator.start();
-        setTimeout(() => {
-          oscillator.stop();
-          audioCtx.close();
-        }, 120);
-      } catch (err) { }
-    }
-
-    function tampilkanNotifikasiEkstraScan(pesan) {
-      const notif = document.getElementById("notif-absen");
-      tampilkanNotifikasi(notif, "Info: " + pesan, true);
-    }
-
-    // ==================== REKAP UNDUHAN (EXCEL & PDF) ====================
+    // ==================== REKAP UNDUHAN UTUH (EXCEL & PDF) ====================
+    // Modifikasi: Mengambil seluruh data presensi tanpa batasan dari server cloud sebelum diunduh
     function unduhExcel() {
-      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
-        tampilkanPesanSistem("Perhatian", "Tidak ada data presensi harian untuk diunduh!", "error");
-        return;
-      }
+      tampilkanPesanSistem("Mengunduh", "Sedang mengunduh dan menyiapkan rekap data presensi lengkap dari basis data cloud...", "info");
+      
+      hubungiBackend("ambilSemuaDaftarPresensi", [], function(dataLengkap) {
+        if (!dataLengkap || dataLengkap.length === 0) {
+          tampilkanPesanSistem("Perhatian", "Tidak ada data presensi harian untuk diekspor!", "error");
+          return;
+        }
 
-      const formatDataExcel = dataPresensiTerbaru.map((item, index) => ({
-        "No": index + 1,
-        "Waktu Input": item.waktu,
-        "Nama Siswa": item.nama,
-        "NISN": item.nisn,
-        "Asal Sekolah (SD)": item.asalSd,
-        "Gugus / Kelompok": item.gugus,
-        "Status Kehadiran": item.status,
-        "Catatan": item.catatan || "-"
-      }));
+        const formatDataExcel = dataLengkap.map((item, index) => ({
+          "No": index + 1,
+          "Waktu Input": item.waktu,
+          "Nama Siswa": item.nama,
+          "NISN": item.nisn,
+          "Asal Sekolah (SD)": item.asalSd,
+          "Gugus / Kelompok": item.gugus,
+          "Status Kehadiran": item.status,
+          "Catatan": item.catatan || "-"
+        }));
 
-      const worksheet = XLSX.utils.json_to_sheet(formatDataExcel);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi");
+        const worksheet = XLSX.utils.json_to_sheet(formatDataExcel);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data Presensi MPLS");
 
-      const wscols = [
-        {wch: 5}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 25}, {wch: 20}, {wch: 18}, {wch: 20}
-      ];
-      worksheet['!cols'] = wscols;
-      XLSX.writeFile(workbook, "Data_Presensi_MPLS_SMPN_11_Palu.xlsx");
+        const wscols = [
+          {wch: 5}, {wch: 20}, {wch: 30}, {wch: 12}, {wch: 25}, {wch: 20}, {wch: 18}, {wch: 20}
+        ];
+        worksheet['!cols'] = wscols;
+        
+        // Simpan fail xlsx ke perangkat
+        XLSX.writeFile(workbook, "Laporan_Presensi_Lengkap_MPLS_SMPN_11_Palu.xlsx");
+        tampilkanPesanSistem("Selesai", "Pengeksporan seluruh data presensi ke Excel sukses!", "success");
+      });
     }
 
     function unduhPDF() {
-      if (!dataPresensiTerbaru || dataPresensiTerbaru.length === 0) {
-        tampilkanPesanSistem("Peringatan", "Tidak ada data presensi harian untuk diunduh!", "error");
-        return;
-      }
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(30, 58, 138); 
-      doc.text("PANITIA MASA PENGENALAN LINGKUNGAN SEKOLAH (MPLS)", 14, 15);
+      tampilkanPesanSistem("Mengunduh", "Sedang memproses seluruh rekap presensi dari basis data cloud ke dokumen PDF resmi...", "info");
       
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(17, 24, 39);
-      doc.text("SMP NEGERI 11 PALU", 14, 22);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(107, 114, 128);
-      doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 27);
-
-      doc.setDrawColor(30, 58, 138);
-      doc.setLineWidth(0.8);
-      doc.line(14, 31, 196, 31);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(17, 24, 39);
-      doc.text("REKAPITULASI PRESENSI HARIAN PESERTA MPLS", 14, 40);
-
-      const headers = [["No", "Waktu Presensi", "Nama Siswa", "Asal Sekolah SD", "Gugus", "Status"]];
-      const rows = dataPresensiTerbaru.map((item, index) => [
-        index + 1, item.waktu, item.nama, item.asalSd, item.gugus, item.status
-      ]);
-
-      doc.autoTable({
-        head: headers,
-        body: rows,
-        startY: 45,
-        theme: "grid",
-        headStyles: { 
-          fillColor: [30, 58, 138], 
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: "bold",
-          halign: "center"
-        },
-        bodyStyles: { fontSize: 8.5, textColor: [55, 65, 81] },
-        alternateRowStyles: { fillColor: [249, 250, 251] },
-        columnStyles: {
-          0: { cellWidth: 10, halign: "center" },
-          1: { cellWidth: 32, halign: "center" },
-          2: { cellWidth: 50 },
-          3: { cellWidth: 42 },
-          4: { cellWidth: 30, halign: "center" },
-          5: { cellWidth: 18, halign: "center" }
+      hubungiBackend("ambilSemuaDaftarPresensi", [], function(dataLengkap) {
+        if (!dataLengkap || dataLengkap.length === 0) {
+          tampilkanPesanSistem("Peringatan", "Tidak ada data presensi harian untuk diekspor!", "error");
+          return;
         }
-      });
 
-      doc.save("Laporan_Presensi_MPLS_SMPN_11_Palu.pdf");
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(30, 58, 138); 
+        doc.text("PANITIA MASA PENGENALAN LINGKUNGAN SEKOLAH (MPLS)", 14, 15);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(15);
+        doc.setTextColor(17, 24, 39);
+        doc.text("SMP NEGERI 11 PALU", 14, 21);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(107, 114, 128);
+        doc.text("Kec. Palu Timur, Kota Palu, Sulawesi Tengah — Tahun Ajaran 2026/2027", 14, 26);
+
+        doc.setDrawColor(30, 58, 138);
+        doc.setLineWidth(0.6);
+        doc.line(14, 29, 196, 29);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(17, 24, 39);
+        doc.text("LAPORAN REKAPITULASI PRESENSI HARIAN PESERTA MPLS (UTUH)", 14, 37);
+
+        const headers = [["No", "Waktu Presensi", "Nama Siswa", "Asal Sekolah SD", "Gugus/Grup", "Status"]];
+        const rows = dataLengkap.map((item, index) => [
+          index + 1, item.waktu, item.nama, item.asalSd, item.gugus, item.status
+        ]);
+
+        doc.autoTable({
+          head: headers,
+          body: rows,
+          startY: 42,
+          theme: "grid",
+          headStyles: { 
+            fillColor: [30, 58, 138], 
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: "bold",
+            halign: "center"
+          },
+          bodyStyles: { fontSize: 8.5, textColor: [55, 65, 81] },
+          alternateRowStyles: { fillColor: [249, 250, 251] },
+          columnStyles: {
+            0: { cellWidth: 10, halign: "center" },
+            1: { cellWidth: 32, halign: "center" },
+            2: { cellWidth: 50 },
+            3: { cellWidth: 42 },
+            4: { cellWidth: 30, halign: "center" },
+            5: { cellWidth: 18, halign: "center" }
+          }
+        });
+
+        doc.save("Laporan_Presensi_Lengkap_MPLS_SMPN_11_Palu.pdf");
+        tampilkanPesanSistem("Selesai", "Dokumen laporan PDF resmi berhasil diunduh ke perangkat Anda!", "success");
+      });
     }
 
     function kirimPresensi() {
