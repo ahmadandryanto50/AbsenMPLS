@@ -380,7 +380,7 @@
           </div>
           <div>
             <p class="text-xs text-gray-400 font-medium">Izin</p>
-            <h4 id="stat-izin" class="text-lg font-bold text-yellow-800">-</h4>
+            <h4 id="stat-izin" class="text-lg font-bold text-yellow-600">-</h4>
           </div>
         </div>
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-3">
@@ -447,7 +447,7 @@
 
           <!-- CONTAINER SCANNER CAMERA -->
           <div id="container-scanner" class="hidden space-y-3 mb-4">
-            <div class="relative bg-black rounded-xl overflow-hidden min-h-[300px] md:min-h-[350px] border-4 border-blue-500 shadow-inner">
+            <div class="relative bg-black rounded-xl overflow-hidden min-h-[300px] md:min-h-[350px] border-4 border-blue-500 shadow-inner flex flex-col justify-center items-center">
               <!-- Laser Line Overlay -->
               <div class="scanner-laser"></div>
               <!-- HTML5 QR Scanner Target -->
@@ -871,7 +871,7 @@
         cloudUrl = localStorage.getItem("mpls_cloud_db_url") || "";
       } catch (e) {}
       
-      // Jika berada di GitHub Pages tanpa konfigurasi Cloud URL, langsung tolak simpan murni ke Sheets
+      // Jika berada di GitHub Pages tanpa konfigurasi Cloud URL, langsung tolak simmpan murni ke Sheets
       if (!isGoogleScript && !cloudUrl) {
         tampilkanPesanSistem("Koneksi Database Belum Terhubung", "Koneksi Database Cloud belum terhubung!\nSilakan isi URL Web App di atas dan simpan terlebih dahulu agar dapat memperbarui sandi langsung ke Spreadsheet.", "error");
         return;
@@ -1199,149 +1199,6 @@
       }
     }
 
-    // BRIDGE CALLER UTAMA: Menjamin pemanggilan berjalan lancar di Apps Script ATAU GitHub via API Fetch
-    function hubungiBackend(actionName, argumentsArray, successCallback, errorCallback) {
-      if (isGoogleScript) {
-        updateDatabaseStatusBadge(true);
-        let runner = google.script.run;
-        if (successCallback) {
-          runner = runner.withSuccessHandler(successCallback);
-        }
-        if (errorCallback) {
-          runner = runner.withFailureHandler(errorCallback);
-        } else {
-          runner = runner.withFailureHandler(function(err) {
-            console.warn("GAS Connection failed, falling back to simulation:", err);
-            if (actionName === "verifikasiPasswordAdmin_GS" || actionName === "ubahPasswordAdmin_GS") {
-              if (errorCallback) errorCallback("Koneksi gagal: " + err);
-            } else {
-              jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
-            }
-          });
-        }
-        if (runner[actionName]) {
-          runner[actionName].apply(runner, argumentsArray); // DI-EXECUTE DENGAN CONTEXT 'runner' YANG TEPAT!
-        } else {
-          if (successCallback) successCallback("Fungsi " + actionName + " tidak terdefinisi di Kode.gs. Menjalankan fallback lokal.");
-        }
-      } else {
-        const cloudUrl = localStorage.getItem("mpls_cloud_db_url");
-        if (!cloudUrl) {
-          updateDatabaseStatusBadge(false);
-          jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
-          return;
-        }
-
-        const payload = {
-          action: actionName,
-          args: argumentsArray
-        };
-
-        // Menggunakan opsi omit credentials dan follow redirect demi keandalan penuh di webview seluler (HP)
-        fetch(cloudUrl, {
-          method: "POST",
-          mode: "cors",
-          credentials: "omit",
-          redirect: "follow",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify(payload)
-        })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error("HTTP error " + res.status);
-          }
-          return res.json();
-        })
-        .then(resObj => {
-          if (resObj && resObj.success !== false) {
-            updateDatabaseStatusBadge(true);
-            if (successCallback) successCallback(resObj.data !== undefined ? resObj.data : resObj);
-          } else {
-            updateDatabaseStatusBadge(false);
-            if (errorCallback) {
-              errorCallback(resObj ? resObj.error : "Gagal membaca API");
-            } else {
-              // Jika GSheets mengembalikan sukses false (misal karena Kode.gs belum di-deploy ulang),
-              // jalankan simulasi lokal agar halaman tidak blank putih!
-              console.warn("API returned success:false, falling back to simulation.");
-              jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
-            }
-          }
-        })
-        .catch(err => {
-          updateDatabaseStatusBadge(false);
-          console.warn("API Connection failed (CORS/Network/Sandbox). Falling back to simulation mode quietly.");
-          if (actionName === "verifikasiPasswordAdmin_GS" || actionName === "ubahPasswordAdmin_GS") {
-            if (errorCallback) {
-              errorCallback("Gagal terhubung ke database. Silakan periksa jaringan Anda atau konfigurasi CORS Web App.");
-            }
-          } else {
-            jalankanSimulasiLokal(actionName, argumentsArray, successCallback);
-          }
-        });
-      }
-    }
-
-    // Simulasi data lokal jika database cloud belum disetup di GitHub
-    function jalankanSimulasiLokal(actionName, args, successCallback) {
-      if (!successCallback) return;
-      
-      switch (actionName) {
-        case "dapatkanStatistik":
-          successCallback({
-            totalSiswa: dummyPresensi.length,
-            hadir: dummyPresensi.filter(x => x.status === "Hadir").length,
-            izin: dummyPresensi.filter(x => x.status === "Izin").length,
-            sakit: dummyPresensi.filter(x => x.status === "Sakit").length
-          });
-          break;
-        case "ambilDaftarPresensi":
-          successCallback(dummyPresensi);
-          break;
-        case "ambilSemuaDaftarPresensi":
-          successCallback(dummyPresensi);
-          break;
-        case "simpanPresensiSiswa":
-          const [nama, nisn, sd, gugus, status, catatan] = args;
-          dummyPresensi.unshift({
-            waktu: "Baru Saja", nama, nisn, asalSd: sd, gugus, status, catatan
-          });
-          successCallback("Sukses: Data presensi disimpan (Mode Simulasi)!");
-          break;
-        case "ambilDaftarPertanyaan":
-          successCallback(dummyTanya);
-          break;
-        case "kirimPertanyaanBaru":
-          const [tanyaNama, tanyaGugus, tanyaTeks] = args;
-          dummyTanya.unshift({
-            nama: tanyaNama, gugus: tanyaGugus, pertanyaan: tanyaTeks, status: "Belum Dijawab", jawaban: ""
-          });
-          successCallback("Sukses: Pertanyaan dikirim (Mode Simulasi)!");
-          break;
-        case "ubahPasswordAdmin_GS":
-          const [newP] = args;
-          try {
-            localStorage.setItem("mpls_admin_password", newP);
-          } catch (e) {}
-          successCallback("Sukses: Kata sandi berhasil diperbarui (Simulasi Lokal)!");
-          break;
-        case "verifikasiPasswordAdmin_GS":
-          const [inputP] = args;
-          let savedP = "admin11palu";
-          try {
-            savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
-          } catch (e) {}
-          if (inputP === savedP) {
-            successCallback({ terverifikasi: true });
-          } else {
-            successCallback({ terverifikasi: false, pesan: "Kata sandi salah!" });
-          }
-          break;
-      }
-    }
-
     // ==================== LOGIKA SCAN BARCODE / QR CODE ====================
     function setPresensiMode(mode) {
       const btnManual = document.getElementById('btn-mode-manual');
@@ -1357,12 +1214,23 @@
         btnScan.className = "flex-1 py-2 text-center rounded-lg bg-white text-blue-900 shadow";
         btnManual.className = "flex-1 py-2 text-center rounded-lg text-gray-600 hover:text-blue-900";
         containerScanner.classList.remove('hidden');
-        setTimeout(nyalakanPemindaiKamera, 250); // Menambahkan jeda yang aman agar rendering DOM viewport selesai sempurna
+        setTimeout(nyalakanPemindaiKamera, 350); // Menambahkan jeda yang aman agar rendering DOM viewport selesai sempurna
       }
     }
 
     function nyalakanPemindaiKamera() {
       if (kameraSedangAktif || sedangTransisiKamera) return;
+
+      // DETEKSI WebView HP BATASAN AKSES: Berikan warning ramah daripada hang/layar putih!
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        sedangTransisiKamera = false;
+        tampilkanPesanSistem(
+          "Akses Kamera Diblokir", 
+          "Browser HP atau WebView Anda membatasi akses kamera langsung. Silakan salin URL situs ini dan buka menggunakan Google Chrome atau Safari asli agar kamera pemindai dapat aktif kembali.", 
+          "error"
+        );
+        return;
+      }
 
       if (typeof Html5Qrcode === 'undefined') {
         tampilkanPesanSistem("Sistem Error", "Library kamera 'Html5Qrcode' gagal dimuat! Silakan hubungkan perangkat Anda ke internet.", "error");
@@ -1383,7 +1251,8 @@
         {
           fps: 15,
           qrbox: (width, height) => {
-            const sideLength = Math.min(width, height) * 0.7;
+            let sideLength = Math.min(width, height) * 0.7;
+            if (sideLength < 100 || isNaN(sideLength)) sideLength = 200; // Safeguard dari crash parsing integer
             return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
           }
         },
@@ -1429,7 +1298,8 @@
               {
                 fps: 15,
                 qrbox: (width, height) => {
-                  const sideLength = Math.min(width, height) * 0.7;
+                  let sideLength = Math.min(width, height) * 0.7;
+                  if (sideLength < 100 || isNaN(sideLength)) sideLength = 200; // Safeguard
                   return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
                 }
               },
@@ -1477,7 +1347,8 @@
         {
           fps: 15,
           qrbox: (width, height) => {
-            const sideLength = Math.min(width, height) * 0.7;
+            let sideLength = Math.min(width, height) * 0.7;
+            if (sideLength < 100 || isNaN(sideLength)) sideLength = 200; // Safeguard
             return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
           }
         },
@@ -1497,7 +1368,7 @@
       });
     }
 
-    // Pemrosesan Pemindaian Mandiri yang Ultra Tangguh & Toleran Terhadap Spasi / Karakter Pemisah
+    // Pemrosesan Pemindaian Mandiri yang Ultra Tangguh, Fleksibel, & Toleran Terhadap Struktur Data Barcode/QR
     function onScanSuccess(decodedText, decodedResult) {
       mainkanNadaBip();
       console.log("Barcode/QR Terdeteksi: ", decodedText);
@@ -1508,13 +1379,14 @@
       
       // Deteksi format terstruktur MPLS:Nama Siswa|Asal Sekolah secara Case-Insensitive (MPLS: / mpls:)
       if (cleanText.toUpperCase().startsWith("MPLS:")) {
-        // Hapus awalan "MPLS:" secara aman dan pangkas spasi kosongnya
         rawData = cleanText.substring(5).trim();
       }
         
       // Pisahkan data menggunakan karakter pemisah umum seperti pipa '|', koma ',', atau titik koma ';'
       let parts = rawData.split(/[|;,]/);
-      if (parts.length >= 1 && (rawData.includes('|') || rawData.includes(';') || rawData.includes(','))) {
+      
+      // PERBAIKAN UTAMA: Jika ada pembatas, pilah datanya ke dalam form secara otomatis
+      if (parts.length > 1 && parts[0].trim() !== "") {
         const namaSiswa = parts[0] ? parts[0].trim() : "";
         const asalSD = parts[1] ? parts[1].trim() : "";
         
@@ -1522,15 +1394,16 @@
         document.getElementById("absen-sd").value = asalSD || "-";
         
         tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswa + "' terdeteksi! Mengirim data presensi harian...");
-        
-        // Kirim presensi otomatis setelah jeda singkat agar input terisi secara visual di form terlebih dahulu
         setTimeout(kirimPresensi, 1000);
-        return;
+      } else {
+        // PERBAIKAN UTAMA: Jika QR Code hanya berisi "Nama Lengkap" saja tanpa pembatas, tetap proses kirim absen otomatis!
+        const namaSiswaMentah = rawData.trim();
+        document.getElementById("absen-nama").value = namaSiswaMentah;
+        document.getElementById("absen-sd").value = "-";
+        
+        tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswaMentah + "' terdeteksi! Mengirim data presensi harian...");
+        setTimeout(kirimPresensi, 1000);
       }
-
-      // Fallback jika memindai teks biasa (dianggap sebagai Nama Lengkap)
-      document.getElementById("absen-nama").value = cleanText;
-      tampilkanNotifikasiEkstraScan("Teks terdeteksi! Nama berhasil diisi.");
     }
 
     function onScanFailure(error) { }
@@ -1568,6 +1441,15 @@
           sedangTransisiKamera = false;
           ubahUIPemindaiMati();
         });
+      }
+    }
+
+    // MEMPERBAIKI KESALAHAN RUNTIME: Menambahkan deklarasi fungsi ubahUIPemindaiMati yang sebelumnya hilang
+    function ubahUIPemindaiMati() {
+      const btnToggle = document.getElementById('btn-toggle-scanner');
+      if (btnToggle) {
+        btnToggle.className = "flex-1 bg-green-500 hover:bg-green-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
+        btnToggle.innerHTML = `<i class="fas fa-play mr-1.5"></i> Aktifkan Kamera`;
       }
     }
 
@@ -1801,7 +1683,7 @@
               <p class="text-xs text-gray-700 leading-relaxed">${item.jawaban}</p>
              </div>`
           : `<div class="mt-2.5 bg-gray-50 border-l-4 border-gray-300 p-2.5 rounded-r-xl italic text-xs text-gray-400">
-              <i class="fas fa-info-circle mr-1"></i> Pertanyaan telah masuk ke panitia dan akan segera dijawab.
+              <i class="fas fa-info-circle mr-1"></i> Pertanyaan telah masuk ke panitia and akan segera dijawab.
              </div>`;
 
         let card = `
@@ -1919,6 +1801,64 @@
       setTimeout(() => {
         element.classList.add("hidden");
       }, 6000);
+    }
+
+    // Simulasi data lokal jika database cloud belum disetup di GitHub
+    function jalankanSimulasiLokal(actionName, args, successCallback) {
+      if (!successCallback) return;
+      
+      switch (actionName) {
+        case "dapatkanStatistik":
+          successCallback({
+            totalSiswa: dummyPresensi.length,
+            hadir: dummyPresensi.filter(x => x.status === "Hadir").length,
+            izin: dummyPresensi.filter(x => x.status === "Izin").length,
+            sakit: dummyPresensi.filter(x => x.status === "Sakit").length
+          });
+          break;
+        case "ambilDaftarPresensi":
+          successCallback(dummyPresensi);
+          break;
+        case "ambilSemuaDaftarPresensi":
+          successCallback(dummyPresensi);
+          break;
+        case "simpanPresensiSiswa":
+          const [nama, nisn, sd, gugus, status, catatan] = args;
+          dummyPresensi.unshift({
+            waktu: "Baru Saja", nama, nisn, asalSd: sd, gugus, status, catatan
+          });
+          successCallback("Sukses: Data presensi disimpan (Mode Simulasi)!");
+          break;
+        case "ambilDaftarPertanyaan":
+          successCallback(dummyTanya);
+          break;
+        case "kirimPertanyaanBaru":
+          const [tanyaNama, tanyaGugus, tanyaTeks] = args;
+          dummyTanya.unshift({
+            nama: tanyaNama, gugus: tanyaGugus, pertanyaan: tanyaTeks, status: "Belum Dijawab", jawaban: ""
+          });
+          successCallback("Sukses: Pertanyaan dikirim (Mode Simulasi)!");
+          break;
+        case "ubahPasswordAdmin_GS":
+          const [newP] = args;
+          try {
+            localStorage.setItem("mpls_admin_password", newP);
+          } catch (e) {}
+          successCallback("Sukses: Kata sandi berhasil diperbarui (Simulasi Lokal)!");
+          break;
+        case "verifikasiPasswordAdmin_GS":
+          const [inputP] = args;
+          let savedP = "admin11palu";
+          try {
+            savedP = localStorage.getItem("mpls_admin_password") || "admin11palu";
+          } catch (e) {}
+          if (inputP === savedP) {
+            successCallback({ terverifikasi: true });
+          } else {
+            successCallback({ terverifikasi: false, pesan: "Kata sandi salah!" });
+          }
+          break;
+      }
     }
 
     // BRIDGE CALLER UTAMA: Menjamin pemanggilan berjalan lancar di Apps Script ATAU GitHub via API Fetch
