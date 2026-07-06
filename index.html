@@ -44,14 +44,9 @@
       pointer-events: none; /* Cegah laser menghalangi interaksi fokus kamera */
     }
     /* Penyelaras Video dan Overlay HTML5-QRCode */
-    #scanner-viewfinder video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important; /* Mencegah kamera melar/penyet di layar seluler */
-      border-radius: 12px;
-    }
     #scanner-viewfinder {
       border: none !important;
+      width: 100% !important;
     }
     @keyframes scanning {
       0% { top: 0%; }
@@ -1251,28 +1246,40 @@
 
       sedangTransisiKamera = true;
 
-      // Prioritaskan inisialisasi menggunakan facingMode: "environment" (kamera belakang)
-      // Ini bypass error izin & pencarian ID kamera yang sering crash di perangkat mobile & WebView
-      if (!pemindaiKamera) {
-        pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
+      // Hentikan dan hapus instansi lama jika ada untuk mencegah tabrakan id scanner
+      if (pemindaiKamera) {
+        try {
+          pemindaiKamera.clear();
+        } catch (e) {}
       }
 
-      // Gunakan inisialisasi cerdas berbasis facingMode terlebih dahulu
+      // Bersihkan elemen div seutuhnya agar DOM segar kembali
+      document.getElementById("scanner-viewfinder").innerHTML = "";
+
+      // Buat instansi pemindai baru yang segar
+      pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
+
+      const config = {
+        fps: 24, // Naikkan fps untuk kecepatan pindai super responsif
+        qrbox: (width, height) => {
+          // Dimensi kotak pemindaian persegi panjang yang proporsional untuk Barcode 1D (lebar mendatar) & QR Code 2D
+          let boxWidth = Math.floor(width * 0.85);
+          let boxHeight = Math.floor(height * 0.55);
+          // Safeguard batas ukuran agar tidak crash
+          if (boxWidth < 200 || isNaN(boxWidth)) boxWidth = 240;
+          if (boxHeight < 120 || isNaN(boxHeight)) boxHeight = 150;
+          return { width: boxWidth, height: boxHeight };
+        },
+        aspectRatio: 1.777778, // Desain rasio 16:9 sinematik yang sangat tajam untuk kamera HP
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // Gunakan sensor akselerasi peranti keras HP
+        }
+      };
+
+      // Gunakan deteksi kamera belakang pintar
       pemindaiKamera.start(
         { facingMode: "environment" }, 
-        {
-          fps: 20, // Web camera frames rate
-          qrbox: (width, height) => {
-            let boxWidth = Math.floor(width * 0.85);
-            let boxHeight = Math.floor(height * 0.55);
-            if (boxWidth < 200) boxWidth = 220;
-            if (boxHeight < 150) boxHeight = 180;
-            return { width: boxWidth, height: boxHeight };
-          },
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true // Akselerasi deteksi hardware HP
-          }
-        },
+        config,
         onScanSuccess,
         onScanFailure
       ).then(() => {
@@ -1283,23 +1290,16 @@
           btnToggle.className = "flex-1 bg-red-500 hover:bg-red-600 text-white text-xs py-2 px-3 rounded-lg font-semibold transition flex items-center justify-center";
           btnToggle.innerHTML = `<i class="fas fa-stop mr-1.5"></i> Matikan Kamera`;
         }
-        // Ambil daftar kamera sebagai pendukung pergantian manual secara background
-        Html5Qrcode.getCameras().then(devices => {
-          if (devices && devices.length > 0) {
-            daftarKameraTersedia = devices;
-          }
-        }).catch(err => {
-          console.warn("Gagal mendapatkan perangkat kamera cadangan:", err);
-        });
       }).catch(err => {
-        console.warn("Inisialisasi kamera standard gagal, mencoba dengan deteksi manual ID kamera...", err);
+        console.warn("Gagal memulai dengan facingMode environment, mencoba fallback manual kamera...", err);
         
-        // Fallback jika instansiasi facingMode environment ditolak/tidak disupport peramban
+        // Fallback: Ambil semua perangkat kamera fisik
         Html5Qrcode.getCameras().then(devices => {
           if (devices && devices.length > 0) {
             daftarKameraTersedia = devices;
             indeksKameraAktif = 0;
-            // Ambil kamera belakang manual jika terdeteksi
+            
+            // Cari kamera belakang secara manual berdasarkan label teks
             let backCameraIndex = devices.findIndex(device => 
               device.label.toLowerCase().includes('back') || 
               device.label.toLowerCase().includes('environment') || 
@@ -1312,19 +1312,7 @@
             
             pemindaiKamera.start(
               daftarKameraTersedia[indeksKameraAktif].id,
-              {
-                fps: 20,
-                qrbox: (width, height) => {
-                  let boxWidth = Math.floor(width * 0.85);
-                  let boxHeight = Math.floor(height * 0.55);
-                  if (boxWidth < 200) boxWidth = 220;
-                  if (boxHeight < 150) boxHeight = 180;
-                  return { width: boxWidth, height: boxHeight };
-                },
-                experimentalFeatures: {
-                  useBarCodeDetectorIfSupported: true
-                }
-              },
+              config,
               onScanSuccess,
               onScanFailure
             ).then(() => {
@@ -1336,11 +1324,11 @@
             });
           } else {
             sedangTransisiKamera = false;
-            tampilkanPesanSistem("Kamera Tidak Terdeteksi", "Sistem tidak mendeteksi perangkat kamera aktif atau izin akses kamera ditolak!", "error");
+            tampilkanPesanSistem("Kamera Gagal", "Tidak ada perangkat kamera yang terdeteksi atau izin akses kamera ditolak!", "error");
           }
         }).catch(err3 => {
           sedangTransisiKamera = false;
-          tampilkanPesanSistem("Gagal Kamera", "Gagal mengakses daftar kamera: " + err3.message, "error");
+          tampilkanPesanSistem("Gagal Mengakses Kamera", "Terjadi kesalahan akses: " + err3.message, "error");
         });
       });
     }
@@ -1371,8 +1359,8 @@
           qrbox: (width, height) => {
             let boxWidth = Math.floor(width * 0.85);
             let boxHeight = Math.floor(height * 0.55);
-            if (boxWidth < 200) boxWidth = 220;
-            if (boxHeight < 150) boxHeight = 180;
+            if (boxWidth < 200 || isNaN(boxWidth)) boxWidth = 240;
+            if (boxHeight < 120 || isNaN(boxHeight)) boxHeight = 150;
             return { width: boxWidth, height: boxHeight };
           },
           experimentalFeatures: {
@@ -1396,7 +1384,7 @@
     }
 
     // Pemrosesan Pemindaian Mandiri yang Ultra Tangguh, Fleksibel, & Toleran Terhadap Struktur Data Barcode/QR
-    // PERBAIKAN INTI: Begitu scan berhasil, bip langsung berbunyi, kamera langsung menutup, data terisi, dan presensi langsung terkirim otomatis!
+    // PERBAIKAN INTI: Begitu scan berhasil, bip langsung berbunyi, kamera langsung menutup secara asinkronus, data terisi, dan presensi langsung terkirim otomatis!
     function onScanSuccess(decodedText, decodedResult) {
       // 1. Bunyikan bip instan untuk kenyamanan indrawi
       mainkanNadaBip();
@@ -1454,7 +1442,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera
+      if (daftarKameraTersedia.length <= 1 || sedangTransTransition) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
@@ -1463,7 +1451,7 @@
     }
 
     function kontrolScanner() {
-      if (sedangTransisiKamera) return;
+      if (sedangTransTransition) return;
       if (kameraSedangAktif) {
         matikanPemindaiKamera();
       } else {
