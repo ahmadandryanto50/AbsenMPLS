@@ -1261,10 +1261,8 @@
       pemindaiKamera.start(
         { facingMode: "environment" }, 
         {
-          fps: 20, // Menaikkan FPS agar tracking frame barcode bergerak lebih cepat dan lincah
+          fps: 20, // Web camera frames rate
           qrbox: (width, height) => {
-            // Mengubah area kotak bidik (viewfinder) menjadi persegi panjang horizontal yang ideal
-            // untuk memindai Barcode 1D (memanjang lebar) maupun QR Code 2D secara bersamaan.
             let boxWidth = Math.floor(width * 0.85);
             let boxHeight = Math.floor(height * 0.55);
             if (boxWidth < 200) boxWidth = 220;
@@ -1272,7 +1270,7 @@
             return { width: boxWidth, height: boxHeight };
           },
           experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true // Mengaktifkan akselerasi sensor hardware HP untuk deteksi kilat
+            useBarCodeDetectorIfSupported: true // Akselerasi deteksi hardware HP
           }
         },
         onScanSuccess,
@@ -1398,11 +1396,29 @@
     }
 
     // Pemrosesan Pemindaian Mandiri yang Ultra Tangguh, Fleksibel, & Toleran Terhadap Struktur Data Barcode/QR
+    // PERBAIKAN INTI: Begitu scan berhasil, bip langsung berbunyi, kamera langsung menutup, data terisi, dan presensi langsung terkirim otomatis!
     function onScanSuccess(decodedText, decodedResult) {
+      // 1. Bunyikan bip instan untuk kenyamanan indrawi
       mainkanNadaBip();
+      
       console.log("Barcode/QR Terdeteksi: ", decodedText);
-      matikanPemindaiKamera();
+      
+      // 2. Tutup kamera pemindai langsung secara instan saat itu juga
+      if (pemindaiKamera && kameraSedangAktif) {
+        sedangTransisiKamera = true;
+        pemindaiKamera.stop().then(() => {
+          kameraSedangAktif = false;
+          sedangTransisiKamera = false;
+          ubahUIPemindaiMati();
+        }).catch(err => {
+          console.warn("Gagal menghentikan kamera scan secara instan:", err);
+          kameraSedangAktif = false;
+          sedangTransisiKamera = false;
+          ubahUIPemindaiMati();
+        });
+      }
 
+      // 3. Proses penguraian data teks hasil scan harian
       const cleanText = decodedText.trim();
       let rawData = cleanText;
       
@@ -1414,7 +1430,7 @@
       // Pisahkan data menggunakan karakter pemisah umum seperti pipa '|', koma ',', atau titik koma ';'
       let parts = rawData.split(/[|;,]/);
       
-      // PERBAIKAN UTAMA: Jika ada pembatas, pilah datanya ke dalam form secara otomatis
+      // 4. Isi bidang input form secara instan dan kirim otomatis presensi ke database
       if (parts.length > 1 && parts[0].trim() !== "") {
         const namaSiswa = parts[0] ? parts[0].trim() : "";
         const asalSD = parts[1] ? parts[1].trim() : "";
@@ -1422,16 +1438,16 @@
         document.getElementById("absen-nama").value = namaSiswa;
         document.getElementById("absen-sd").value = asalSD || "-";
         
-        tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswa + "' terdeteksi! Mengirim data presensi harian...");
-        setTimeout(kirimPresensi, 1000);
+        tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswa + "' berhasil terscan! Mengirim data presensi...");
+        setTimeout(kirimPresensi, 500); // Kirim otomatis presensi harian setelah visual input diperbarui (500ms)
       } else {
-        // PERBAIKAN UTAMA: Jika QR Code hanya berisi "Nama Lengkap" saja tanpa pembatas, tetap proses kirim absen otomatis!
+        // Jika QR Code hanya berisi "Nama Lengkap" saja tanpa pembatas asal sekolah
         const namaSiswaMentah = rawData.trim();
         document.getElementById("absen-nama").value = namaSiswaMentah;
         document.getElementById("absen-sd").value = "-";
         
-        tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswaMentah + "' terdeteksi! Mengirim data presensi harian...");
-        setTimeout(kirimPresensi, 1000);
+        tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswaMentah + "' berhasil terscan! Mengirim data presensi...");
+        setTimeout(kirimPresensi, 500); // Kirim otomatis presensi harian setelah visual input diperbarui (500ms)
       }
     }
 
