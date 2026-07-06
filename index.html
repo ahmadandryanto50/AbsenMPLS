@@ -380,7 +380,7 @@
           </div>
           <div>
             <p class="text-xs text-gray-400 font-medium">Izin</p>
-            <h4 id="stat-izin" class="text-lg font-bold text-yellow-600">-</h4>
+            <h4 id="stat-izin" class="text-lg font-bold text-yellow-800">-</h4>
           </div>
         </div>
         <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-3">
@@ -1377,13 +1377,14 @@
         pemindaiKamera = new Html5Qrcode("scanner-viewfinder");
       }
 
+      // Gunakan inisialisasi cerdas berbasis facingMode terlebih dahulu
       pemindaiKamera.start(
         { facingMode: "environment" }, 
         {
           fps: 15,
           qrbox: (width, height) => {
             const sideLength = Math.min(width, height) * 0.7;
-            return { width: sideLength, height: sideLength };
+            return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
           }
         },
         onScanSuccess,
@@ -1416,7 +1417,8 @@
             let backCameraIndex = devices.findIndex(device => 
               device.label.toLowerCase().includes('back') || 
               device.label.toLowerCase().includes('environment') || 
-              device.label.toLowerCase().includes('rear')
+              device.label.toLowerCase().includes('rear') ||
+              device.label.toLowerCase().includes('belakang')
             );
             if (backCameraIndex !== -1) {
               indeksKameraAktif = backCameraIndex;
@@ -1428,7 +1430,7 @@
                 fps: 15,
                 qrbox: (width, height) => {
                   const sideLength = Math.min(width, height) * 0.7;
-                  return { width: sideLength, height: sideLength };
+                  return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
                 }
               },
               onScanSuccess,
@@ -1476,7 +1478,7 @@
           fps: 15,
           qrbox: (width, height) => {
             const sideLength = Math.min(width, height) * 0.7;
-            return { width: sideLength, height: sideLength };
+            return { width: Math.floor(sideLength), height: Math.floor(sideLength) };
           }
         },
         onScanSuccess,
@@ -1502,27 +1504,28 @@
       matikanPemindaiKamera();
 
       const cleanText = decodedText.trim();
+      let rawData = cleanText;
       
       // Deteksi format terstruktur MPLS:Nama Siswa|Asal Sekolah secara Case-Insensitive (MPLS: / mpls:)
       if (cleanText.toUpperCase().startsWith("MPLS:")) {
         // Hapus awalan "MPLS:" secara aman dan pangkas spasi kosongnya
-        let rawData = cleanText.substring(5).trim();
+        rawData = cleanText.substring(5).trim();
+      }
         
-        // Pisahkan data menggunakan karakter pemisah umum seperti pipa '|', koma ',', atau titik koma ';'
-        let parts = rawData.split(/[|;,]/);
-        if (parts.length >= 1) {
-          const namaSiswa = parts[0] ? parts[0].trim() : "";
-          const asalSD = parts[1] ? parts[1].trim() : "";
-          
-          document.getElementById("absen-nama").value = namaSiswa;
-          document.getElementById("absen-sd").value = asalSD || "-";
-          
-          tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswa + "' terdeteksi! Mengirim data presensi harian...");
-          
-          // Kirim presensi otomatis setelah jeda singkat agar input terisi secara visual di form terlebih dahulu
-          setTimeout(kirimPresensi, 1000);
-          return;
-        }
+      // Pisahkan data menggunakan karakter pemisah umum seperti pipa '|', koma ',', atau titik koma ';'
+      let parts = rawData.split(/[|;,]/);
+      if (parts.length >= 1 && (rawData.includes('|') || rawData.includes(';') || rawData.includes(','))) {
+        const namaSiswa = parts[0] ? parts[0].trim() : "";
+        const asalSD = parts[1] ? parts[1].trim() : "";
+        
+        document.getElementById("absen-nama").value = namaSiswa;
+        document.getElementById("absen-sd").value = asalSD || "-";
+        
+        tampilkanNotifikasiEkstraScan("Siswa '" + namaSiswa + "' terdeteksi! Mengirim data presensi harian...");
+        
+        // Kirim presensi otomatis setelah jeda singkat agar input terisi secara visual di form terlebih dahulu
+        setTimeout(kirimPresensi, 1000);
+        return;
       }
 
       // Fallback jika memindai teks biasa (dianggap sebagai Nama Lengkap)
@@ -1533,7 +1536,7 @@
     function onScanFailure(error) { }
 
     function pilihKameraLain() {
-      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) { // PERBAIKAN TYPO sedangTransTransition -> sedangTransisiKamera
+      if (daftarKameraTersedia.length <= 1 || sedangTransisiKamera) { // PERBAIKAN SINKRONISASI TYPO sedangTransisiKamera
         if (daftarKameraTersedia.length <= 1) tampilkanPesanSistem("Info", "Perangkat Anda hanya memiliki satu kamera aktif.", "info");
         return;
       }
